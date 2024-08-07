@@ -23,6 +23,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from django.core.exceptions import ObjectDoesNotExist
+from .models import Todotasks
 
 @csrf_exempt
 def Home(request):
@@ -4354,3 +4355,43 @@ def EmployeeMaster(request):
     }
 
     return JsonResponse(data)
+
+
+@csrf_exempt
+def task_list(request):
+    if request.method == 'GET':
+        tasks = Todotasks.objects.all().values()
+        tasks_list = list(tasks)
+        return JsonResponse(tasks_list, safe=False)
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        description = data.get('description')
+        new_task = Todotasks(description=description)
+        new_task.save()
+        return JsonResponse({'id': new_task.tid, 'description': new_task.description, 'date': new_task.date}, status=201)
+
+@csrf_exempt
+def task_detail(request, task_id):
+    try:
+        task = Todotasks.objects.get(tid=task_id)
+    except Todotasks.DoesNotExist:
+        return HttpResponse(status=404)
+
+    if request.method == 'GET':
+        return JsonResponse({'id': task.tid, 'description': task.description, 'date': task.date})
+    elif request.method == 'PUT':
+        data = json.loads(request.body)
+        task.description = data.get('description', task.description)
+        task.save()
+        return JsonResponse({'id': task.tid, 'description': task.description, 'date': task.date})
+    elif request.method == 'DELETE':
+        task.delete()
+        return HttpResponse(status=204)
+
+@csrf_exempt
+def task_search(request):
+    if request.method == 'GET':
+        search_term = request.GET.get('search', '')
+        tasks = Todotasks.objects.filter(description__icontains=search_term).values()
+        tasks_list = list(tasks)
+        return JsonResponse(tasks_list, safe=False)

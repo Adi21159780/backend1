@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
+from .views import task_list,task_detail, task_search
 
 urlpatterns = [
     path('', views.Home, name='home'),
@@ -53,15 +54,9 @@ urlpatterns = [
     path('EditResignation/', views.EditResignation, name='EditResignation'),
     path('EditExitClearnace/', views.EditExitClearnace, name='EditExitClearnace'),
     path('GenerateFnf/', views.GenerateFnf, name='GenerateFnf'),
-<<<<<<< Updated upstream
-    path('DisplayTraining/', views.DisplayTraining, name='DisplayTraining'),
-    path('CreateCase', views.CreateCase, name='CreateCase'),
-    path('MyCases', views.MyCases, name='MyCases'),
-=======
     path('DisplayTraining', views.DisplayTraining, name='DisplayTraining'),
     path('CreateCase/', views.CreateCase, name='CreateCase'),
     path('MyCases/', views.MyCases, name='MyCases'),
->>>>>>> Stashed changes
     path('UpdatePersonalDetails/', views.UpdatePersonalDetails, name='UpdatePersonalDetails'),
     path('UpdateJobDetails/', views.UpdateJobDetails, name='UpdateJobDetails'),
     path('UpdateBankDetails/', views.UpdateBankDetails, name='UpdateBankDetails'),
@@ -110,6 +105,9 @@ urlpatterns = [
     path('EmployeeDetails/', views.EmployeeDetails, name='EmployeeDetails'),
     path('AttendanceDetails/', views.AttendanceDetails, name='AttendanceDetails'),
     path('EmployeeMaster/', views.EmployeeMaster, name='employeemaster'),
+     path('tasks/', task_list, name='task_list'),
+    path('tasks/<int:task_id>/', task_detail, name='task_detail'),
+    path('tasks/search/', task_search, name='task_search'),
 ]
 
 
