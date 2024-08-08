@@ -53,15 +53,12 @@ urlpatterns = [
     path('EditResignation/', views.EditResignation, name='EditResignation'),
     path('EditExitClearnace/', views.EditExitClearnace, name='EditExitClearnace'),
     path('GenerateFnf/', views.GenerateFnf, name='GenerateFnf'),
-<<<<<<< Updated upstream
     path('DisplayTraining/', views.DisplayTraining, name='DisplayTraining'),
     path('CreateCase', views.CreateCase, name='CreateCase'),
     path('MyCases', views.MyCases, name='MyCases'),
-=======
     path('DisplayTraining', views.DisplayTraining, name='DisplayTraining'),
     path('CreateCase/', views.CreateCase, name='CreateCase'),
     path('MyCases/', views.MyCases, name='MyCases'),
->>>>>>> Stashed changes
     path('UpdatePersonalDetails/', views.UpdatePersonalDetails, name='UpdatePersonalDetails'),
     path('UpdateJobDetails/', views.UpdateJobDetails, name='UpdateJobDetails'),
     path('UpdateBankDetails/', views.UpdateBankDetails, name='UpdateBankDetails'),
@@ -110,8 +107,16 @@ urlpatterns = [
     path('EmployeeDetails/', views.EmployeeDetails, name='EmployeeDetails'),
     path('AttendanceDetails/', views.AttendanceDetails, name='AttendanceDetails'),
     path('EmployeeMaster/', views.EmployeeMaster, name='employeemaster'),
+    path('events/', views.event_list, name='event_list'),
+    path('events/<int:evt_id>/', views.event_detail, name='event_detail'),
+    path('events/create/', views.event_create, name='event_create'),
+    path('events/update/<int:evt_id>/', views.event_update, name='event_update'),
+    path('events/delete/<int:evt_id>/', views.event_delete, name='event_delete'),
+    path('jd/create/', views.job_create, name='job_create'),
+    path('detail/<int:job_desc_id>/', views.job_detail, name='job_detail'),
+    path('itdeclaration80c/create/', views.itdeclaration80c_create, name='itdeclaration80c_create'),
+    path('itdeclaration80d_new/create/', views.itdeclaration80d_new_create, name='itdeclaration80d_new_create'),
 ]
-
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

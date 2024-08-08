@@ -4354,3 +4354,161 @@ def EmployeeMaster(request):
     }
 
     return JsonResponse(data)
+
+
+
+
+
+def event_list(request):
+    events = Events.objects.all().values()
+    return JsonResponse(list(events), safe=False)
+
+def event_detail(request, evt_id):
+    event = get_object_or_404(Events, pk=evt_id)
+    return JsonResponse({
+        'evt_id': event.evt_id,
+        'evt_type': event.evt_type,
+        'evt_start': event.evt_start,
+        'evt_end': event.evt_end,
+        'evt_text': event.evt_text,
+        'evt_color': event.evt_color,
+        'status': event.status,
+        'emp_emailid': event.emp_emailid,
+    })
+
+@csrf_exempt
+def event_create(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        event = Events.objects.create(
+            evt_type=data.get('evt_type'),
+            evt_start=data.get('evt_start'),
+            evt_end=data.get('evt_end'),
+            evt_text=data.get('evt_text'),
+            evt_color=data.get('evt_color'),
+            status=data.get('status', False),
+            emp_emailid=data.get('emp_emailid')
+        )
+        return JsonResponse({'evt_id': event.evt_id}, status=201)
+
+@csrf_exempt
+def event_update(request, evt_id):
+    event = get_object_or_404(Events, pk=evt_id)
+    if request.method == 'PUT':
+        data = json.loads(request.body)
+        event.evt_type = data.get('evt_type', event.evt_type)
+        event.evt_start = data.get('evt_start', event.evt_start)
+        event.evt_end = data.get('evt_end', event.evt_end)
+        event.evt_text = data.get('evt_text', event.evt_text)
+        event.evt_color = data.get('evt_color', event.evt_color)
+        event.status = data.get('status', event.status)
+        event.emp_emailid = data.get('emp_emailid', event.emp_emailid)
+        event.save()
+        return JsonResponse({'evt_id': event.evt_id})
+
+@csrf_exempt
+def event_delete(request, evt_id):
+    event = get_object_or_404(Events, pk=evt_id)
+    if request.method == 'DELETE':
+        event.delete()
+        return HttpResponse(status=204)
+
+
+@csrf_exempt
+def job_detail(request, job_desc_id):
+    if request.method == 'GET':
+        job = get_object_or_404(Job_desc, job_desc_id=job_desc_id)
+        return JsonResponse({
+            'job_desc_id': job.job_desc_id,
+            'jd_name': job.jd_name,
+            'responsiblities': job.responsiblities,
+            'sdate': job.sdate,
+            'ratings': job.ratings,
+            'selfratings': job.selfratings,
+            'remarks': job.remarks,
+            'status': job.status,
+            'email_id': job.email_id,
+            'jid': job.jid,
+        })
+    else:
+        return HttpResponse(status=405)  # Method Not Allowed
+
+
+@csrf_exempt
+def job_create(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            job = Job_desc.objects.create(
+                jd_name=data.get('jd_name'),
+                responsiblities=data.get('responsiblities'),
+                sdate=data.get('sdate'),
+                ratings=data.get('ratings', 0),
+                selfratings=data.get('selfratings', 0),
+                remarks=data.get('remarks'),
+                status=data.get('status', 0),
+                email_id=data.get('email_id'),
+                jid=data.get('jid')
+            )
+            return JsonResponse({'job_desc_id': job.job_desc_id}, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return HttpResponse(status=405)  # Method Not Allowed
+
+
+@csrf_exempt
+def itdeclaration80c_create(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        investment_fields = {
+            "Investment1": "Investment1_Amount",
+            "Investment2": "Investment2_Amount",
+            "Investment3": "Investment3_Amount",
+            "Investment4": "Investment4_Amount",
+            "Investment5": "Investment5_Amount",
+            "Investment6": "Investment6_Amount",
+        }
+        # Find which investment field is provided
+        for investment, amount in investment_fields.items():
+            if investment in data and amount in data:
+                item = ITDeclaration80c.objects.create(
+                    Emp_id=data.get("Emp_id"),
+                    **{investment: data[investment], amount: data[amount]}
+                )
+                return JsonResponse({"id": item.id})
+        return JsonResponse({"error": "Invalid data provided"}, status=400)
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+@csrf_exempt
+def itdeclaration80d_new_create(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        investment_fields = {
+            "Investment1": "Investment1_Amount",
+            "Investment2": "Investment2_Amount",
+            "Investment3": "Investment3_Amount",
+            "Investment4": "Investment4_Amount",
+            "Investment5": "Investment5_Amount",
+            "Investment6": "Investment6_Amount",
+        }
+        try:
+            emp_emailid = Employee.objects.get(pk=data.get("emp_emailid"))
+        except Employee.DoesNotExist:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+
+        # Find which investment field is provided
+        for investment, amount in investment_fields.items():
+            if investment in data and amount in data:
+                item = Itdeclaration80d_new.objects.create(
+                    Emp_id=data.get("Emp_id"),
+                    **{investment: data[investment], amount: data[amount]},
+                    emp_emailid=emp_emailid
+                )
+                return JsonResponse({"Emp_id": item.Emp_id})
+        return JsonResponse({"error": "Invalid data provided"}, status=400)
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+

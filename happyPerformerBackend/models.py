@@ -861,3 +861,4 @@ class Work_exp(models.Model):
     gross_salary = models.FloatField(null=True, blank=True)
     leave_reason = models.TextField(null=True, blank=True)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid')
+    
