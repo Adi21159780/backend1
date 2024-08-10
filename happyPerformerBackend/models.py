@@ -464,6 +464,16 @@ class Kra(models.Model):
     email_id = models.CharField(max_length=100, null=True, default=None)
     kra_id = models.ForeignKey('Kra_table', on_delete=models.CASCADE, db_column='kra_id')
 
+class Kra_desc(models.Model):
+    kra_no = models.BigAutoField(primary_key=True)
+    KRA = models.CharField(max_length=50)
+    Weightage = models.IntegerField()
+    KPI = models.CharField(max_length=500)
+    Measurement = models.IntegerField()
+    email_id = models.CharField(max_length=100, null=True, default=None)
+    submission_date = models.DateTimeField(default=None)
+
+
 
 class Leavecounttemp(models.Model):
     emp_emailid = models.CharField(max_length=50, primary_key=True)
@@ -830,6 +840,8 @@ class Todotasks(models.Model):
         indexes = [
             models.Index(fields=['evt_id']),
         ]
+
+
 
 class User_answer(models.Model):
     id = models.BigAutoField(primary_key=True)

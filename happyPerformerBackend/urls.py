@@ -53,15 +53,9 @@ urlpatterns = [
     path('EditResignation/', views.EditResignation, name='EditResignation'),
     path('EditExitClearnace/', views.EditExitClearnace, name='EditExitClearnace'),
     path('GenerateFnf/', views.GenerateFnf, name='GenerateFnf'),
-<<<<<<< Updated upstream
-    path('DisplayTraining/', views.DisplayTraining, name='DisplayTraining'),
-    path('CreateCase', views.CreateCase, name='CreateCase'),
-    path('MyCases', views.MyCases, name='MyCases'),
-=======
     path('DisplayTraining', views.DisplayTraining, name='DisplayTraining'),
     path('CreateCase/', views.CreateCase, name='CreateCase'),
     path('MyCases/', views.MyCases, name='MyCases'),
->>>>>>> Stashed changes
     path('UpdatePersonalDetails/', views.UpdatePersonalDetails, name='UpdatePersonalDetails'),
     path('UpdateJobDetails/', views.UpdateJobDetails, name='UpdateJobDetails'),
     path('UpdateBankDetails/', views.UpdateBankDetails, name='UpdateBankDetails'),
@@ -110,6 +104,11 @@ urlpatterns = [
     path('EmployeeDetails/', views.EmployeeDetails, name='EmployeeDetails'),
     path('AttendanceDetails/', views.AttendanceDetails, name='AttendanceDetails'),
     path('EmployeeMaster/', views.EmployeeMaster, name='employeemaster'),
+    path('Settings/', views.Settings, name='Settings'),  
+    path('UpdateEmployeePassword/', views.UpdateEmployeePassword, name='UpdateEmployeePassword'),
+    path('jdform/', views.JDForm, name='JDForm'),
+    path('kraform/', views.KRAForm, name='KRAForm'),
+    path('sopform/', views.SOPForm, name='SOPForm'),
 ]
 
 

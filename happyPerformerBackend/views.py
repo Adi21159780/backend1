@@ -4354,3 +4354,187 @@ def EmployeeMaster(request):
     }
 
     return JsonResponse(data)
+
+@csrf_exempt
+def Settings(request):
+    company_id = request.session.get('c_id')
+    user_id = request.session.get('emp_emailid')
+    if not company_id:
+        return JsonResponse({'error': 'ID not found in session'}, status=401)
+    if request.method == 'GET':
+        employee_details = Employee.objects.filter(emp_emailid=user_id)
+        employee_list = []
+        for emp in employee_details:
+            employee_list.append({
+                'emp_name': emp.emp_name,
+                'emp_emailid': emp.emp_emailid,
+                'emp_phone': emp.emp_phone,
+                'emp_profile': emp.emp_profile,
+                'emp_skills': emp.emp_skills,
+            })
+        return JsonResponse(employee_list, safe=True)
+    
+
+@csrf_exempt
+def UpdateEmployeePassword(request):
+    company_id = request.session.get('c_id')
+    emp_emailid = request.session.get('emp_emailid')
+
+    if not company_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        emp_new_pwd = data.get('emp_pwd')
+
+        if not emp_new_pwd:
+            return JsonResponse({'error': 'New password not provided'}, status=400)
+
+        try:
+            employee = Employee.objects.get(emp_emailid=emp_emailid)
+            employee.emp_pwd = make_password(emp_new_pwd)  # Encrypt the new password
+            employee.save()
+            return JsonResponse({'success': 'Employee password updated successfully'}, status=200)
+        except Employee.DoesNotExist:
+            return JsonResponse({'error': 'Employee not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+# @csrf_exempt
+# def MarkAttendance(request):
+#     emp_emailid = request.session.get('emp_emailid')
+#     if not emp_emailid:
+#         return JsonResponse({'error': 'Employee ID not found in session'}, status=401)
+#     elif request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#             emp_id=data.get('emp_emailid'),
+#             if emp_id == Employee.objects.filter(emp_emailid=emp_emailid).exists():
+#                 emp_id = request.POST.get('emp_emailid'),
+#                 emp_shift = request.POST.get('emp_shift'),
+#                 emp_logout_time = request.POST.get('logout_time')
+#                 emp = Attendance(emp_id=emp_id, emp_shift=emp_shift, logout_time=emp_logout_time)
+#                 emp.save()
+#                 return JsonResponse({'message': 'Attendance marked successfully.'}, status=201)
+#             else:
+#                 return JsonResponse({'message': 'Invalid request methos.'}, status=405)
+#         except json.JSONDecodeError:
+#             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        
+@csrf_exempt
+@role_required(['Manager', 'Super Manager'])
+def JDForm(request):
+    company_id = request.session.get('c_id')
+    user_name = request.session.get('emp_name')
+
+    if not company_id or not user_name:
+        return JsonResponse({'error': 'Required session data not found'}, status=401)
+    elif request.method == 'POST':
+        # Assuming data is sent in JSON format from React app
+        data = json.loads(request.body)
+
+        jd_name = data.get('jd_name')
+        responsibilities = data.get('responsibilities')
+        sdate = data.get('sdate')
+        email_ids = data.get('email_ids', [])
+        jid = data.get('jid')
+
+        for email_id in email_ids:
+            job_desc = Job_desc.objects.create(
+                jd_name=jd_name,
+                responsiblities=responsibilities,
+                sdate=sdate,
+                email_id=email_id,
+                jid=jid
+            )
+            job_desc.save()
+
+        return JsonResponse({'status': 'success'}, status=201)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+@csrf_exempt
+@role_required(['Manager', 'Super Manager'])
+def KRAForm(request):
+    company_id = request.session.get('c_id')
+    user_name = request.session.get('emp_name')
+    if not company_id or not user_name:
+        return JsonResponse({'error': 'Required session data not found'}, status=401)
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+
+            kra = data.get('kra')
+            weightage = data.get('weightage')
+            kpi = data.get('kpi')
+            measurement = data.get('measurement')
+            email_ids = data.get('email_ids', [])
+            submission_date = data.get('submission_date')
+
+            for email_id in email_ids:
+                kra_desc = Kra_details.objects.create(
+                    KRA=kra,
+                    Weightage=weightage,
+                    KPI=kpi,
+                    Measurement=measurement,
+                    email_id=email_id, 
+                    submission_date = submission_date,
+                )
+                kra_desc.save()
+            
+            return JsonResponse({'status': 'success'}, status=201)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except KeyError as e:
+            return JsonResponse({'error': f'Missing key: {str(e)}'}, status=400)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def SOPForm(request):
+    company_id = request.session.get('c_id')
+    user_name = request.session.get('emp_name')
+    if not company_id or not user_name:
+        return JsonResponse({'error': 'Required session data not found'}, status=401)
+    elif request.method == 'POST':
+        try:
+            # Check if the form has all required fields
+            if not all(key in request.POST for key in ('sop_id', 'type', 's_name', 'sdate', 'd_id')):
+                return JsonResponse({'error': 'All fields are required'}, status=400)
+
+        
+            sop_id = request.POST.get('sop_id')
+            type = request.POST.get('type')
+            s_name = request.POST.get('s_name')
+            sdate = request.POST.get('sdate')
+            d_id = request.POST.get('d_id')
+
+            # Save the SOP entry
+            sop_entry = Sop.objects.create(
+                sop_id=sop_id,
+                type=type,
+                s_name=s_name,
+                sdate=sdate,
+                d_id_id=d_id
+            )
+            sop_entry.save()
+
+
+            return JsonResponse({'status': 'SOP submitted successfully'}, status=201)
+        
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+
