@@ -4512,3 +4512,58 @@ def itdeclaration80d_new_create(request):
         return JsonResponse({"error": "Invalid data provided"}, status=400)
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
+@csrf_exempt
+def itdeclaration_oie_new_create(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        investment_fields = {
+            "Investment1": "Investment1_Amount",
+            "Investment2": "Investment2_Amount",
+            "Investment3": "Investment3_Amount",
+            "Investment4": "Investment4_Amount",
+        }
+        try:
+            emp_emailid = Employee.objects.get(pk=data.get("emp_emaiid"))
+        except Employee.DoesNotExist:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+
+        # Find which investment field is provided
+        for investment, amount in investment_fields.items():
+            if investment in data and amount in data:
+                item = Itdeclaration_oie_new.objects.create(
+                    Emp_id=data.get("Emp_id"),
+                    **{investment: data[investment], amount: data[amount]},
+                    emp_emaiid=emp_emailid
+                )
+                return JsonResponse({"Emp_id": item.Emp_id})
+        return JsonResponse({"error": "Invalid data provided"}, status=400)
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+@csrf_exempt
+def itdeclaration_osi_new_create(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        
+        # Retrieve the Employee instance
+        try:
+            emp_emailid = Employee.objects.get(emp_emailid=data.get("emp_emailid"))
+        except Employee.DoesNotExist:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+        
+        # Create the Itdeclaration_osi_new record
+        item = Itdeclaration_osi_new.objects.create(
+            Emp_id=data.get("Emp_id"),
+            Investment1=data.get("Investment1", 'Income from other sources'),
+            Investment1_Amount=data.get("Investment1_Amount", 0),
+            Investment2=data.get("Investment2", 'Interest Earned from Savings Deposit'),
+            Investment2_Amount=data.get("Investment2_Amount", 0),
+            Investment3=data.get("Investment3", 'Interest Earned from Fixed Deposit'),
+            Investment3_Amount=data.get("Investment3_Amount", 0),
+            Investment4=data.get("Investment4", 'Interest Earned from National Savings certificates'),
+            Investment4_Amount=data.get("Investment4_Amount", 0),
+            emp_emailid=emp_emailid  # Assign the Employee instance here
+        )
+        return JsonResponse({"Emp_id": item.Emp_id})
+    
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+

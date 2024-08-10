@@ -116,7 +116,12 @@ urlpatterns = [
     path('detail/<int:job_desc_id>/', views.job_detail, name='job_detail'),
     path('itdeclaration80c/create/', views.itdeclaration80c_create, name='itdeclaration80c_create'),
     path('itdeclaration80d_new/create/', views.itdeclaration80d_new_create, name='itdeclaration80d_new_create'),
+    path('itdeclaration_oie_new/create/', views.itdeclaration_oie_new_create, name='itdeclaration_oie_new_create'),
+    path('itdeclaration_osi_new/create/', views.itdeclaration_osi_new_create, name='itdeclaration_osi_new_create'),
+    
+    # Add other paths here
 ]
+
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
