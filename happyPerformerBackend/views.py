@@ -1,6 +1,6 @@
 import json
 from django.shortcuts import render
-from django.http import HttpResponse , JsonResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseNotAllowed , JsonResponse, HttpResponseBadRequest
 from .models import *
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -323,7 +323,7 @@ def FormReviewRespose(request):
                 columns = [col[0] for col in cursor.description]
                 for col, val in zip(columns, response_row):
                     if col != 'emp_name':
-                        cursor.execute(f"SELECT label FROM Custom_forms_questions WHERE ID = %s AND form_name = %s AND c_id = %s", [col, form_name, cid])
+                        cursor.execute(f"SELECT label FROM Custom_forms_questions WHERE ID = %s AND form_name = %s AND c_id = %s", [col, form_name, c_id])
                         question = cursor.fetchone()
                         if question:
                             response_data.append({'question': question[0], 'answer': val})
@@ -2154,7 +2154,7 @@ def UpdateBankDetails(request):
             }
             return JsonResponse({'status': 'success', 'data': data})
 
-        except BankDetails.DoesNotExist:
+        except Bank_details.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Bank details not found'}, status=404)
 
     elif request.method == 'POST':
@@ -2186,7 +2186,7 @@ def UpdateBankDetails(request):
 
                 return JsonResponse({'status': 'success'})
 
-            except BankDetails.DoesNotExist:
+            except Bank_details.DoesNotExist:
                 return JsonResponse({'status': 'error', 'message': 'Bank details not found'}, status=404)
 
         except json.JSONDecodeError:
@@ -3625,7 +3625,7 @@ def AddSalary(request):
             special_allowance = monthly_ctc - (hra + conveyance + da + basic)
 
             annual_taxable = annual_ctc - eligible_deductions
-            tax_liability = TaxCalculationToAddSalary(age, annual_taxable)
+            tax_liability = tax_calculation_to_add_salary(age, annual_taxable)
 
             monthly_tds = tax_liability / 12
             monthly_epf = basic * 0.12
@@ -4358,7 +4358,9 @@ def EmployeeMaster(request):
 @csrf_exempt
 def Settings(request):
     company_id = request.session.get('c_id')
+    print(company_id)
     user_id = request.session.get('emp_emailid')
+    print(user_id)
     if not company_id:
         return JsonResponse({'error': 'ID not found in session'}, status=401)
     if request.method == 'GET':
@@ -4369,11 +4371,12 @@ def Settings(request):
                 'emp_name': emp.emp_name,
                 'emp_emailid': emp.emp_emailid,
                 'emp_phone': emp.emp_phone,
-                'emp_profile': emp.emp_profile,
+                'emp_profile': emp.emp_profile.url,
                 'emp_skills': emp.emp_skills,
             })
-        return JsonResponse(employee_list, safe=True)
+        return JsonResponse(employee_list, safe=False)
     
+
 
 @csrf_exempt
 def UpdateEmployeePassword(request):
@@ -4383,20 +4386,27 @@ def UpdateEmployeePassword(request):
     if not company_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
-    elif request.method == 'POST':
+    if request.method == 'POST':
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        
+        emp_old_pwd = data.get('emp_old_pwd')
         emp_new_pwd = data.get('emp_pwd')
 
-        if not emp_new_pwd:
-            return JsonResponse({'error': 'New password not provided'}, status=400)
+        if not emp_old_pwd or not emp_new_pwd:
+            return JsonResponse({'error': 'Both old and new passwords must be provided'}, status=400)
 
         try:
             employee = Employee.objects.get(emp_emailid=emp_emailid)
-            employee.emp_pwd = make_password(emp_new_pwd)  # Encrypt the new password
+
+            if employee.emp_pwd != emp_old_pwd:  # Check if the old password matches
+                return JsonResponse({'error': 'Old password is incorrect'}, status=401)
+
+            employee.emp_pwd = emp_new_pwd  # Encrypt the new password before saving
             employee.save()
+
             return JsonResponse({'success': 'Employee password updated successfully'}, status=200)
         except Employee.DoesNotExist:
             return JsonResponse({'error': 'Employee not found'}, status=404)
@@ -4406,26 +4416,47 @@ def UpdateEmployeePassword(request):
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-# @csrf_exempt
-# def MarkAttendance(request):
-#     emp_emailid = request.session.get('emp_emailid')
-#     if not emp_emailid:
-#         return JsonResponse({'error': 'Employee ID not found in session'}, status=401)
-#     elif request.method == 'POST':
-#         try:
-#             data = json.loads(request.body)
-#             emp_id=data.get('emp_emailid'),
-#             if emp_id == Employee.objects.filter(emp_emailid=emp_emailid).exists():
-#                 emp_id = request.POST.get('emp_emailid'),
-#                 emp_shift = request.POST.get('emp_shift'),
-#                 emp_logout_time = request.POST.get('logout_time')
-#                 emp = Attendance(emp_id=emp_id, emp_shift=emp_shift, logout_time=emp_logout_time)
-#                 emp.save()
-#                 return JsonResponse({'message': 'Attendance marked successfully.'}, status=201)
-#             else:
-#                 return JsonResponse({'message': 'Invalid request methos.'}, status=405)
-#         except json.JSONDecodeError:
-#             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+@csrf_exempt
+def MarkAttendance(request):
+    if request.method == 'POST':
+        try:
+            # Ensure the employee is logged in
+            emp_emailid = request.session.get('emp_emailid')
+            if not emp_emailid:
+                return JsonResponse({'error': 'Employee not logged in'}, status=401)
+
+            # Parse the JSON data from the request
+            data = json.loads(request.body)
+            log_type = data.get('log_type')  # True for login, False for logout
+            user_ip = data.get('user_ip')
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+            datetime_log = data.get('datetime_log', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            # Create the attendance record
+            # attendance = Attendance.objects.create(
+            attendance = Attendance(
+                log_type=log_type,
+                user_ip=user_ip,
+                latitude=latitude,
+                longitude=longitude,
+                datetime_log=datetime_log,
+                date_updated=datetime.now(),
+                emp_emailid=Employee.objects.get(emp_emailid=emp_emailid)
+            )
+            attendance.save()
+
+            return JsonResponse({'status': 'Attendance punched successfully'}, status=201)
+
+        except Employee.DoesNotExist:
+            return JsonResponse({'error': 'Employee not found'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
         
 @csrf_exempt
 @role_required(['Manager', 'Super Manager'])
@@ -4455,7 +4486,7 @@ def JDForm(request):
             )
             job_desc.save()
 
-        return JsonResponse({'status': 'success'}, status=201)
+        return JsonResponse({'status': 'JD assigned successfully.'}, status=201)
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
@@ -4479,7 +4510,7 @@ def KRAForm(request):
             submission_date = data.get('submission_date')
 
             for email_id in email_ids:
-                kra_desc = Kra_details.objects.create(
+                kra_desc = Kra_desc.objects.create(
                     KRA=kra,
                     Weightage=weightage,
                     KPI=kpi,
@@ -4489,7 +4520,7 @@ def KRAForm(request):
                 )
                 kra_desc.save()
             
-            return JsonResponse({'status': 'success'}, status=201)
+            return JsonResponse({'status': 'KRA assigned successfully'}, status=201)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
         except KeyError as e:
@@ -4499,7 +4530,7 @@ def KRAForm(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+# @role_required(['HR', 'Manager', 'Super Manager'])
 def SOPForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -4507,24 +4538,24 @@ def SOPForm(request):
         return JsonResponse({'error': 'Required session data not found'}, status=401)
     elif request.method == 'POST':
         try:
-            # Check if the form has all required fields
-            if not all(key in request.POST for key in ('sop_id', 'type', 's_name', 'sdate', 'd_id')):
-                return JsonResponse({'error': 'All fields are required'}, status=400)
-
+           
         
             sop_id = request.POST.get('sop_id')
             type = request.POST.get('type')
             s_name = request.POST.get('s_name')
             sdate = request.POST.get('sdate')
+            sop_file = request.FILES.get('sop_file')
             d_id = request.POST.get('d_id')
+            
 
             # Save the SOP entry
-            sop_entry = Sop.objects.create(
+            sop_entry = Sop(
                 sop_id=sop_id,
                 type=type,
                 s_name=s_name,
                 sdate=sdate,
-                d_id_id=d_id
+                sop_file=sop_file,
+                d_id_id=d_id,
             )
             sop_entry.save()
 

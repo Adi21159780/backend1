@@ -107,6 +107,7 @@ urlpatterns = [
     path('Settings/', views.Settings, name='Settings'),  
     path('UpdateEmployeePassword/', views.UpdateEmployeePassword, name='UpdateEmployeePassword'),
     path('jdform/', views.JDForm, name='JDForm'),
+    path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
     path('kraform/', views.KRAForm, name='KRAForm'),
     path('sopform/', views.SOPForm, name='SOPForm'),
 ]
