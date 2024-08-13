@@ -4463,13 +4463,18 @@ def UpdateEmployeePassword(request):
 def MarkAttendance(request):
     if request.method == 'POST':
         try:
-            # Ensure the employee is logged in
-            emp_emailid = request.session.get('emp_emailid')
-            if not emp_emailid:
+            logged_in_emp_emailid = request.session.get('emp_emailid')
+            if not logged_in_emp_emailid:
                 return JsonResponse({'error': 'Employee not logged in'}, status=401)
 
             # Parse the JSON data from the request
             data = json.loads(request.body)
+            emp_emailid = data.get('emp_emailid')
+            
+            # Check if the logged-in employee is trying to punch their own attendance
+            if emp_emailid != logged_in_emp_emailid:
+                return JsonResponse({'error': 'You can only punch attendance for your own account.'}, status=403)
+
             log_type = data.get('log_type')  # True for login, False for logout
             user_ip = data.get('user_ip')
             latitude = data.get('latitude')
@@ -4477,7 +4482,6 @@ def MarkAttendance(request):
             datetime_log = data.get('datetime_log', datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
             # Create the attendance record
-            # attendance = Attendance.objects.create(
             attendance = Attendance(
                 log_type=log_type,
                 user_ip=user_ip,
