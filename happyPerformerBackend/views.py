@@ -4358,9 +4358,9 @@ def EmployeeMaster(request):
 @csrf_exempt
 def Settings(request):
     company_id = request.session.get('c_id')
-    print(company_id)
+    # print(company_id)
     user_id = request.session.get('emp_emailid')
-    print(user_id)
+    # print(user_id)
     if not company_id:
         return JsonResponse({'error': 'ID not found in session'}, status=401)
     if request.method == 'GET':
@@ -4375,6 +4375,49 @@ def Settings(request):
                 'emp_skills': emp.emp_skills,
             })
         return JsonResponse(employee_list, safe=False)
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            emp_emailid = data.get('emp_emailid')
+            if not emp_emailid:
+                return JsonResponse({'error': 'Employee email ID is required'}, status=400)
+            try:
+                changes_made = False
+                employee = Employee.objects.get(emp_emailid=emp_emailid)
+                # Update fields only if new data is provided
+                emp_emailid = data.get('emp_emailid')
+                if emp_emailid and emp_emailid != employee.emp_emailid:
+                    employee.emp_emailid = emp_emailid
+                    changes_made = True
+                emp_name = data.get('emp_name')
+                if emp_name and emp_name != employee.emp_name:
+                    employee.emp_name = emp_name
+                    changes_made = True
+                emp_phone = data.get('emp_phone')
+                if emp_phone and emp_phone != employee.emp_phone:
+                    employee.emp_phone = emp_phone
+                    changes_made = True
+                emp_profile = data.get('emp_profile')
+                if emp_profile and emp_profile != str(employee.emp_profile):
+                    employee.emp_profile = emp_profile
+                    changes_made = True
+                emp_skills = data.get('emp_skills')
+                if emp_skills and emp_skills != employee.emp_skills:
+                    employee.emp_skills = emp_skills
+                    changes_made = True
+                # Save only if changes were made
+                if changes_made:
+                    employee.save()
+                return JsonResponse({'status': 'Employee details updated successfully'}, status=200)
+            except Employee.DoesNotExist:
+                return JsonResponse({'error': 'Employee not found'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+            
+
     
 
 
@@ -4477,17 +4520,21 @@ def JDForm(request):
         jid = data.get('jid')
 
         for email_id in email_ids:
-            job_desc = Job_desc.objects.create(
-                jd_name=jd_name,
-                responsiblities=responsibilities,
-                sdate=sdate,
-                email_id=email_id,
-                jid=jid
-            )
-            job_desc.save()
-
+            try:
+                # Check if the employee with the given email ID exists
+                employee = Employee.objects.get(emp_emailid=email_id)
+                job_desc = Job_desc.objects.create(
+                    jd_name=jd_name,
+                    responsiblities=responsibilities,
+                    sdate=sdate,
+                    email_id=email_id,
+                    jid=jid
+                )
+                job_desc.save()
+            except Employee.DoesNotExist:
+                # If the employee does not exist, return an error
+                return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
         return JsonResponse({'status': 'JD assigned successfully.'}, status=201)
-
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
@@ -4530,7 +4577,7 @@ def KRAForm(request):
 
 
 @csrf_exempt
-# @role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Manager'])
 def SOPForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -4538,8 +4585,7 @@ def SOPForm(request):
         return JsonResponse({'error': 'Required session data not found'}, status=401)
     elif request.method == 'POST':
         try:
-           
-        
+                  
             sop_id = request.POST.get('sop_id')
             type = request.POST.get('type')
             s_name = request.POST.get('s_name')
@@ -4547,7 +4593,6 @@ def SOPForm(request):
             sop_file = request.FILES.get('sop_file')
             d_id = request.POST.get('d_id')
             
-
             # Save the SOP entry
             sop_entry = Sop(
                 sop_id=sop_id,
@@ -4558,7 +4603,6 @@ def SOPForm(request):
                 d_id_id=d_id,
             )
             sop_entry.save()
-
 
             return JsonResponse({'status': 'SOP submitted successfully'}, status=201)
         
