@@ -4425,6 +4425,7 @@ def Settings(request):
 def UpdateEmployeePassword(request):
     company_id = request.session.get('c_id')
     emp_emailid = request.session.get('emp_emailid')
+    logged_in_emp_emailid = request.session.get('emp_emailid')
 
     if not company_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
@@ -4435,6 +4436,7 @@ def UpdateEmployeePassword(request):
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
         
+    
         emp_old_pwd = data.get('emp_old_pwd')
         emp_new_pwd = data.get('emp_pwd')
 
@@ -4443,11 +4445,19 @@ def UpdateEmployeePassword(request):
 
         try:
             employee = Employee.objects.get(emp_emailid=emp_emailid)
-
-            if employee.emp_pwd != emp_old_pwd:  # Check if the old password matches
+            if emp_emailid != logged_in_emp_emailid:
+                return JsonResponse({'error': 'You can only change your own password.'}, status=403)
+            
+            # Check if the old password is correct
+            if employee.emp_pwd != emp_old_pwd:
                 return JsonResponse({'error': 'Old password is incorrect'}, status=401)
 
-            employee.emp_pwd = emp_new_pwd  # Encrypt the new password before saving
+            # Check if the new password is the same as the old password
+            if emp_old_pwd == emp_new_pwd:
+                return JsonResponse({'error': 'New password cannot be the same as the old password.'}, status=400)
+
+            # Update the password
+            employee.emp_pwd = emp_new_pwd  # Ideally, you would encrypt the password here
             employee.save()
 
             return JsonResponse({'success': 'Employee password updated successfully'}, status=200)
@@ -4457,6 +4467,7 @@ def UpdateEmployeePassword(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 
 @csrf_exempt
