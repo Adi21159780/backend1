@@ -105,9 +105,11 @@ urlpatterns = [
     path('EmployeeDetails/', views.EmployeeDetails, name='EmployeeDetails'),
     path('AttendanceDetails/', views.AttendanceDetails, name='AttendanceDetails'),
     path('EmployeeMaster/', views.EmployeeMaster, name='employeemaster'),
-     path('tasks/', task_list, name='task_list'),
+    path('tasks/', views.task_list, name='task_list'),
     path('tasks/<int:task_id>/', task_detail, name='task_detail'),
     path('tasks/search/', task_search, name='task_search'),
+    path('myperformance/<str:employee_email>/<int:year>/', views.get_performance_data, name='get_performance_data'),
+    path('jd-form/', views.jd_form, name='jd_form')
 ]
 
 

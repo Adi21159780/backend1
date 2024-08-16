@@ -23,7 +23,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from django.core.exceptions import ObjectDoesNotExist
-from .models import Todotasks
+
+
 
 @csrf_exempt
 def Home(request):
@@ -109,7 +110,6 @@ def Users(request):
     }
 
     return JsonResponse(data)
-
 
 
 @csrf_exempt
@@ -209,7 +209,8 @@ def SopAndPolicies(request):
             }
             combined_data.append(combined_task)
 
-        return JsonResponse({'data': combined_data}, safe=False)
+        return JsonResponse({'data': 
+            combined_data}, safe=False)
     else:
         return JsonResponse({'error': 'User not logged in'}, status=401)
 
@@ -4359,39 +4360,189 @@ def EmployeeMaster(request):
 
 @csrf_exempt
 def task_list(request):
+    """
+    Handles requests related to to-do tasks.
+
+    GET: Retrieves a list of tasks for the authenticated user.
+    POST: Creates a new task for the authenticated user.
+    """
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
     if request.method == 'GET':
-        tasks = Todotasks.objects.all().values()
+        tasks = Todotasks.objects.filter(tasks_tid__emp_emailid=emp_emailid).values()
         tasks_list = list(tasks)
         return JsonResponse(tasks_list, safe=False)
+
     elif request.method == 'POST':
         data = json.loads(request.body)
         description = data.get('description')
         new_task = Todotasks(description=description)
         new_task.save()
-        return JsonResponse({'id': new_task.tid, 'description': new_task.description, 'date': new_task.date}, status=201)
+
+        # Fetch the Employee instance using emp_emailid
+        employee = Employee.objects.get(emp_emailid=emp_emailid)
+
+        # Create the associated Tasks entry using the Employee instance
+        Tasks.objects.create(tid=new_task, emp_emailid=employee)
+
+        return JsonResponse(
+            {'id': new_task.tid, 'description': new_task.description, 'date': new_task.date}, 
+            status=201
+        )
 
 @csrf_exempt
 def task_detail(request, task_id):
+    """
+    Handles requests for a specific to-do task.
+
+    GET: Retrieves details of a task.
+    PUT: Updates a task.
+    DELETE: Deletes a task.
+    """
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
     try:
-        task = Todotasks.objects.get(tid=task_id)
+        # Get the task, ensuring it belongs to the user
+        task = Todotasks.objects.get(tid=task_id, tasks_tid__emp_emailid=emp_emailid)
     except Todotasks.DoesNotExist:
         return HttpResponse(status=404)
 
     if request.method == 'GET':
         return JsonResponse({'id': task.tid, 'description': task.description, 'date': task.date})
+
     elif request.method == 'PUT':
         data = json.loads(request.body)
         task.description = data.get('description', task.description)
         task.save()
         return JsonResponse({'id': task.tid, 'description': task.description, 'date': task.date})
+
     elif request.method == 'DELETE':
         task.delete()
         return HttpResponse(status=204)
 
 @csrf_exempt
 def task_search(request):
+    """
+    Handles search requests for to-do tasks.
+
+    GET: Retrieves tasks matching the search term for the authenticated user.
+    """
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
     if request.method == 'GET':
         search_term = request.GET.get('search', '')
-        tasks = Todotasks.objects.filter(description__icontains=search_term).values()
+        tasks = Todotasks.objects.filter(
+            description__icontains=search_term,
+            tasks_tid__emp_emailid=emp_emailid
+        ).values()
         tasks_list = list(tasks)
         return JsonResponse(tasks_list, safe=False)
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_performance_data(request, employee_email, year):
+    # Authenticate user
+    user_email = request.session.get('user_id')
+    
+    # Fetch the employee record using the email from the session
+    try:
+        logged_in_employee = Employee.objects.get(emp_emailid=user_email)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'User not authenticated'}, status=401)
+    
+    # Fetch the employee record for the requested performance data
+    try:
+        employee = Employee.objects.get(emp_emailid=employee_email, d_id=logged_in_employee.d_id)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'Employee not found'}, status=404)
+    
+    # Filter tasks based on the employee and year
+    tasks = Tasks.objects.filter(emp_emailid=employee, sop__sdate__year=year)
+    
+    # Calculate task statistics
+    total_sop_assigned = tasks.count()
+    total_sop_accomplished = tasks.filter(status=True).count()
+    total_kra_assigned = tasks.filter(kra_id__isnull=False).count()
+    total_kra_accomplished = tasks.filter(kra_id__isnull=False, status=True).count()
+    total_jd_assigned = tasks.filter(job_desc_id__isnull=False).count()
+    total_jd_accomplished = tasks.filter(job_desc_id__isnull=False, status=True).count()
+    total_training_assigned = tasks.filter(tid__isnull=False).count()
+    total_training_accomplished = tasks.filter(tid__isnull=False, status=True).count()
+    
+    # Prepare the response data
+    data = {
+        'totalSopAssigned': total_sop_assigned,
+        'totalSopAccomplished': total_sop_accomplished,
+        'totalKraAssigned': total_kra_assigned,
+        'totalKraAccomplished': total_kra_accomplished,
+        'totalJdAssigned': total_jd_assigned,
+        'totalJdAccomplished': total_jd_accomplished,
+        'totalTrainingAssigned': total_training_assigned,
+        'totalTrainingAccomplished': total_training_accomplished,
+    }
+
+    return JsonResponse(data, status=200)
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def jd_form(request):
+    """
+    Handles requests related to Job Description forms.
+
+    GET: Not supported for this endpoint.
+    POST: Creates a new JD form and associated tasks.
+    PUT: Not supported for this endpoint.
+    DELETE: Not supported for this endpoint.
+    """
+    company_id = request.session.get('c_id')
+    if not company_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            jd_name = data.get('jdName')
+            date = data.get('date')
+            responsibilities = data.get('responsibilities')
+
+            if not all([jd_name, date, responsibilities]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+            # Assuming you are sending employee emails in the request
+            employee_emails = data.get('employeeEmails', [])  # Get employee emails from data
+
+            with transaction.atomic():
+                jd_instance = Job_desc.objects.create(
+                    jd_name=jd_name,
+                    responsiblities=', '.join(responsibilities),  # Store responsibilities as comma-separated string
+                    sdate=date
+                )
+
+                for emp_email in employee_emails:
+                    employee = Employee.objects.get(emp_emailid=emp_email)
+                    if employee.d_id.c_id_id != company_id:
+                        raise ValueError(f"Employee {emp_email} does not belong to this company.")
+
+                    Tasks.objects.create(
+                        job_desc_id=jd_instance,
+                        responsiblities=', '.join(responsibilities),  # Store responsibilities as comma-separated string
+                        emp_emailid=employee,
+                        sdate=date,
+                        d_id=employee.d_id
+                    )
+
+            return JsonResponse({'message': 'JD form and tasks created successfully'}, status=201)
+
+        except (Employee.DoesNotExist, ValueError) as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
