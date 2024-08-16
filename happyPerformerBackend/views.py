@@ -4534,6 +4534,16 @@ def JDForm(request):
         email_ids = data.get('email_ids', [])
         jid = data.get('jid')
 
+
+        if not jd_name or not responsibilities or not sdate or not jid:
+            return JsonResponse({'error': 'All fields are required.'}, status=400)
+
+        for email_id in email_ids:
+            if not Employee.objects.filter(emp_emailid=email_id).exists():
+                # Return an error if any email ID does not exist in the registered employee list
+                return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
+
+
         for email_id in email_ids:
             try:
                 # Check if the employee with the given email ID exists
