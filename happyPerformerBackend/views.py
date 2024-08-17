@@ -4359,9 +4359,20 @@ def EmployeeMaster(request):
 
 
 
+@csrf_exempt
 def event_list(request):
-    events = Events.objects.all().values()
-    return JsonResponse(list(events), safe=False)
+    if request.method == 'GET':
+        # Check if the user is logged in
+        emp_emailid = request.session.get('emp_emailid')
+        if not emp_emailid:
+            return JsonResponse({'error': 'User not logged in'}, status=401)
+        
+        # Filter events by the logged-in user's email
+        events = Events.objects.filter(emp_emailid=emp_emailid).values()
+        
+        return JsonResponse(list(events), safe=False)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 def event_detail(request, evt_id):
     event = get_object_or_404(Events, pk=evt_id)
@@ -4379,6 +4390,13 @@ def event_detail(request, evt_id):
 @csrf_exempt
 def event_create(request):
     if request.method == 'POST':
+        # Check if user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({"error": "User not logged in"}, status=401)
+        
+        # Get the logged-in user's email
+        emp_emailid = request.session.get('emp_emailid')
+        
         data = json.loads(request.body)
         event = Events.objects.create(
             evt_type=data.get('evt_type'),
@@ -4387,31 +4405,69 @@ def event_create(request):
             evt_text=data.get('evt_text'),
             evt_color=data.get('evt_color'),
             status=data.get('status', False),
-            emp_emailid=data.get('emp_emailid')
+            emp_emailid=emp_emailid  # Use the logged-in user's email
         )
         return JsonResponse({'evt_id': event.evt_id}, status=201)
 
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
 @csrf_exempt
 def event_update(request, evt_id):
-    event = get_object_or_404(Events, pk=evt_id)
     if request.method == 'PUT':
+        # Check if user is logged in
+        if 'user_id' not in request.session:
+            return JsonResponse({'error': 'User not logged in'}, status=403)
+        
+        # Get the logged-in user's email
+        logged_in_email = request.session.get('emp_emailid')
+
+        # Retrieve the event by ID
+        event = get_object_or_404(Events, pk=evt_id)
+
+        # Ensure the event belongs to the logged-in user
+        if event.emp_emailid != logged_in_email:
+            return JsonResponse({'error': 'Unauthorized to update this event'}, status=403)
+
+        # Parse the request body
         data = json.loads(request.body)
+        
+        # Update event fields
         event.evt_type = data.get('evt_type', event.evt_type)
         event.evt_start = data.get('evt_start', event.evt_start)
         event.evt_end = data.get('evt_end', event.evt_end)
         event.evt_text = data.get('evt_text', event.evt_text)
         event.evt_color = data.get('evt_color', event.evt_color)
         event.status = data.get('status', event.status)
-        event.emp_emailid = data.get('emp_emailid', event.emp_emailid)
+        # Do not update emp_emailid from the request; it should come from the session
+        event.emp_emailid = logged_in_email
+        
+        # Save the updated event
         event.save()
+        
         return JsonResponse({'evt_id': event.evt_id})
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 @csrf_exempt
 def event_delete(request, evt_id):
-    event = get_object_or_404(Events, pk=evt_id)
     if request.method == 'DELETE':
+        # Check if user is logged in
+        emp_emailid = request.session.get('emp_emailid')
+        if not emp_emailid:
+            return JsonResponse({"error": "User not logged in"}, status=401)
+        
+        # Retrieve the event
+        event = get_object_or_404(Events, pk=evt_id)
+        
+        # Check if the event belongs to the logged-in user
+        if event.emp_emailid != emp_emailid:
+            return JsonResponse({"error": "You are not authorized to delete this event"}, status=403)
+        
+        # Delete the event
         event.delete()
         return HttpResponse(status=204)
+
+    return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
 @csrf_exempt
@@ -4486,7 +4542,15 @@ def itdeclaration80c_create(request):
 @csrf_exempt
 def itdeclaration80d_new_create(request):
     if request.method == 'POST':
+        if not request.session.get('user_id'):
+            return JsonResponse({"error": "User not logged in"}, status=401)
+
         data = json.loads(request.body)
+        logged_in_email = request.session.get('emp_emailid')
+
+        if data.get("emp_emailid") != logged_in_email:
+            return JsonResponse({"error": "Unauthorized action"}, status=403)
+
         investment_fields = {
             "Investment1": "Investment1_Amount",
             "Investment2": "Investment2_Amount",
@@ -4495,8 +4559,9 @@ def itdeclaration80d_new_create(request):
             "Investment5": "Investment5_Amount",
             "Investment6": "Investment6_Amount",
         }
+        
         try:
-            emp_emailid = Employee.objects.get(pk=data.get("emp_emailid"))
+            emp_emailid = Employee.objects.get(pk=logged_in_email)
         except Employee.DoesNotExist:
             return JsonResponse({"error": "Employee not found"}, status=404)
 
@@ -4509,21 +4574,34 @@ def itdeclaration80d_new_create(request):
                     emp_emailid=emp_emailid
                 )
                 return JsonResponse({"Emp_id": item.Emp_id})
+                
         return JsonResponse({"error": "Invalid data provided"}, status=400)
+    
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
 @csrf_exempt
 def itdeclaration_oie_new_create(request):
     if request.method == 'POST':
+        # Check if the user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({"error": "User not logged in"}, status=401)
+
         data = json.loads(request.body)
+        logged_in_email = request.session.get('emp_emailid')
+
+        # Ensure that the email in the request matches the logged-in user's email
+        if data.get("emp_emailid") != logged_in_email:
+            return JsonResponse({"error": "Unauthorized action"}, status=403)
+
         investment_fields = {
             "Investment1": "Investment1_Amount",
             "Investment2": "Investment2_Amount",
             "Investment3": "Investment3_Amount",
             "Investment4": "Investment4_Amount",
         }
+        
         try:
-            emp_emailid = Employee.objects.get(pk=data.get("emp_emaiid"))
+            emp_emailid = Employee.objects.get(pk=logged_in_email)
         except Employee.DoesNotExist:
             return JsonResponse({"error": "Employee not found"}, status=404)
 
@@ -4533,23 +4611,35 @@ def itdeclaration_oie_new_create(request):
                 item = Itdeclaration_oie_new.objects.create(
                     Emp_id=data.get("Emp_id"),
                     **{investment: data[investment], amount: data[amount]},
-                    emp_emaiid=emp_emailid
+                    emp_emailid=emp_emailid
                 )
                 return JsonResponse({"Emp_id": item.Emp_id})
+
         return JsonResponse({"error": "Invalid data provided"}, status=400)
+    
     return JsonResponse({"error": "Invalid request method"}, status=400)
+
 
 @csrf_exempt
 def itdeclaration_osi_new_create(request):
     if request.method == 'POST':
+        # Check if the user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({"error": "User not logged in"}, status=401)
+
         data = json.loads(request.body)
-        
+        logged_in_email = request.session.get('emp_emailid')
+
+        # Ensure that the email in the request matches the logged-in user's email
+        if data.get("emp_emailid") != logged_in_email:
+            return JsonResponse({"error": "Unauthorized action"}, status=403)
+
         # Retrieve the Employee instance
         try:
-            emp_emailid = Employee.objects.get(emp_emailid=data.get("emp_emailid"))
+            emp_emailid = Employee.objects.get(emp_emailid=logged_in_email)
         except Employee.DoesNotExist:
             return JsonResponse({"error": "Employee not found"}, status=404)
-        
+
         # Create the Itdeclaration_osi_new record
         item = Itdeclaration_osi_new.objects.create(
             Emp_id=data.get("Emp_id"),
@@ -4567,3 +4657,159 @@ def itdeclaration_osi_new_create(request):
     
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
+
+
+@csrf_exempt
+def jd_create(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+
+        try:
+            # Retrieve the employee using the provided employee name
+            employee = Employee.objects.get(emp_name=data.get("emp_name"))
+        except Employee.DoesNotExist:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+
+        # Create a new Job Description (Job_desc) entry without assigning jid from the input
+        job_desc = Job_desc.objects.create(
+            jd_name=data.get("jd_name"),
+            responsiblities="; ".join(data.get("responsibilities", [])),  # Join multiple responsibilities into one string
+            sdate=data.get("sdate"),
+            email_id=employee.emp_emailid,
+            jid=0  # Temporary value; will update after creation
+        )
+
+        # Update the jid with the same value as job_desc_id
+        job_desc.jid = job_desc.job_desc_id
+        job_desc.save()
+
+        # Store the job description ID in Jd_table
+        Jd_table.objects.create(jd_id=job_desc.job_desc_id)
+
+        return JsonResponse({"message": "Job Description created successfully", "jd_id": job_desc.job_desc_id}, status=201)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+@csrf_exempt
+def jd_detail(request, jd_id):
+    if request.method == 'GET':
+         # Check if user is authenticated
+        user_email = request.session.get('user_id')
+        if not user_email:
+            return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+        # Retrieve the Job Description by jd_id
+        job_desc = get_object_or_404(Job_desc, job_desc_id=jd_id)
+        
+        # Prepare the response data
+        data = {
+            "jid": job_desc.jid,
+            "email_id": job_desc.email_id,
+            "responsibilities": job_desc.responsiblities,
+            "self_ratings": job_desc.selfratings,
+            "ratings": job_desc.ratings,
+            "remarks": job_desc.remarks
+        }
+        
+        return JsonResponse(data, status=200)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+@csrf_exempt
+def update_manager_rating(request, jid):
+    if request.method == 'POST':
+        # Check if the user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({'error': 'User not logged in'}, status=401)
+
+        data = json.loads(request.body)
+
+        # Retrieve the Job Description by jid
+        job_desc = get_object_or_404(Job_desc, jid=jid)
+
+        # Update the ratings and remarks
+        job_desc.ratings = data.get('ratings', job_desc.ratings)
+        job_desc.remarks = data.get('remarks', job_desc.remarks)
+        job_desc.save()
+
+        return JsonResponse({
+            "jid": job_desc.jid,
+            "ratings": job_desc.ratings,
+            "remarks": job_desc.remarks,
+            "message": "Manager rating updated successfully."
+        }, status=200)
+
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+@csrf_exempt
+def jdlist(request):
+    if request.method == 'GET':
+        # Ensure the user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({'error': 'User not logged in'}, status=401)
+        
+        # Get the logged-in employee's name
+        emp_name = request.session.get('emp_name')
+        
+        try:
+            # Retrieve the employee instance using the name
+            employee = Employee.objects.get(emp_name=emp_name)
+        except Employee.DoesNotExist:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+
+        # Retrieve all job descriptions assigned to this employee
+        job_descs = Job_desc.objects.filter(email_id=employee.emp_emailid)
+
+        # Prepare the response data
+        job_desc_list = []
+        for jd in job_descs:
+            job_desc_list.append({
+                'jd_id':jd.job_desc_id,
+                'jd_name': jd.jd_name,
+                'responsibilities': jd.responsiblities,
+                'sdate': jd.sdate,
+                'ratings': jd.ratings,
+                'selfratings': jd.selfratings,
+                'remarks': jd.remarks,
+                'status': jd.status,
+            })
+
+        return JsonResponse({"job_descriptions": job_desc_list}, status=200)
+
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+@csrf_exempt
+def managerrating_jd(request):
+    if request.method == 'GET':
+        # Check if user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({"error": "User not logged in"}, status=401)
+        
+        # Check if the logged-in user has the role of Manager
+        #if request.session.get('emp_role') != 'Manager':
+            #return JsonResponse({"error": "Access denied. Only managers can view this."}, status=403)
+
+        # Retrieve all job descriptions with associated employee names
+        job_descriptions = Job_desc.objects.all()
+        jd_data = []
+        for jd in job_descriptions:
+            try:
+                employee = Employee.objects.get(emp_emailid=jd.email_id)
+                jd_data.append({
+                    "jd_id": jd.job_desc_id,
+                    "jd_date": jd.sdate,
+                    "employee_name": employee.emp_name
+                })
+            except Employee.DoesNotExist:
+                # Handle cases where the employee associated with the JD does not exist
+                jd_data.append({
+                    "jd_id": jd.job_desc_id,
+                    "jd_date": jd.sdate,
+                    "employee_name": "Unknown"
+                })
+
+        return JsonResponse({"job_descriptions": jd_data}, status=200)
+
+    return JsonResponse({"error": "Invalid request method"}, status=400)

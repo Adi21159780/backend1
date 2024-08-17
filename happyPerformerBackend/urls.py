@@ -113,11 +113,17 @@ urlpatterns = [
     path('events/update/<int:evt_id>/', views.event_update, name='event_update'),
     path('events/delete/<int:evt_id>/', views.event_delete, name='event_delete'),
     path('jd/create/', views.job_create, name='job_create'),
-    path('detail/<int:job_desc_id>/', views.job_detail, name='job_detail'),
+    #path('detail/<int:job_desc_id>/', views.job_detail, name='job_detail'),
     path('itdeclaration80c/create/', views.itdeclaration80c_create, name='itdeclaration80c_create'),
     path('itdeclaration80d_new/create/', views.itdeclaration80d_new_create, name='itdeclaration80d_new_create'),
     path('itdeclaration_oie_new/create/', views.itdeclaration_oie_new_create, name='itdeclaration_oie_new_create'),
     path('itdeclaration_osi_new/create/', views.itdeclaration_osi_new_create, name='itdeclaration_osi_new_create'),
+    path('job_desc/create/', views.jd_create, name='jd_create'),
+    path('detail/<int:jd_id>/', views.jd_detail, name='jd_detail'),
+    path('job_desc/<int:jid>/manager_rating/', views.update_manager_rating, name='update_manager_rating'),
+    path('jdlist/', views.jdlist, name='jdlist'),
+    path('managerrating/jds/', views.managerrating_jd, name='managerrating_jd'),
+
     
     # Add other paths here
 ]
