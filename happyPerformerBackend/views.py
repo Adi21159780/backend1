@@ -4645,7 +4645,7 @@ def bulkEmployeeUpload(request):
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        
+
         # Extract company details
         name = data.get('companyName')
         addr = data.get('companyAddress')
@@ -4659,15 +4659,19 @@ def bulkEmployeeUpload(request):
             return JsonResponse({'error': 'Required fields are missing'}, status=400)
 
         # Create the company
-        new_company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
-        company_id = new_company.id
+        new_company = Company.objects.create(
+            c_name=name, 
+            c_addr=addr, 
+            c_phone=phone
+        )
+        company_id = new_company.pk  # Get the primary key of the newly created company
 
         # Create departments and get the first department's ID
         first_dept_id = None
         for dept_name in dept_names:
             new_dept = Department.objects.create(d_name=dept_name, c_id=new_company)
             if first_dept_id is None:
-                first_dept_id = new_dept.id
+                first_dept_id = new_dept.pk  # Get the primary key of the first department
 
         # Create employees
         for emp in employees:
@@ -4676,6 +4680,7 @@ def bulkEmployeeUpload(request):
             emp_phone = emp.get('empNum')
             emp_skills = emp.get('empSkills')
 
+            # Validate employee data
             if not emp_name or not emp_email or not emp_phone or not emp_skills:
                 return JsonResponse({'error': 'Employee data is incomplete'}, status=400)
 
@@ -4684,7 +4689,7 @@ def bulkEmployeeUpload(request):
                 emp_name=emp_name,
                 emp_emailid=emp_email,
                 emp_skills=emp_skills,
-                emp_role='Employee',  # Default role for new employees
+                emp_role='Super Manager',  # Or use a default role if appropriate
                 emp_phone=emp_phone,
                 d_id_id=first_dept_id
             )
