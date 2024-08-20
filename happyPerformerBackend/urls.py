@@ -110,7 +110,9 @@ urlpatterns = [
     path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
     path('kraform/', views.KRAForm, name='KRAForm'),
     path('sopform/', views.SOPForm, name='SOPForm'),
+    path('bulkEmployeeUpload/', views.bulkEmployeeUpload, name='bulkEmployeeUpload'),
 ]
+
 
 
 if settings.DEBUG:

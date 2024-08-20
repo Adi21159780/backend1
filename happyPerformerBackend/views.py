@@ -4638,3 +4638,57 @@ def SOPForm(request):
 
 
 
+@csrf_exempt
+def bulkEmployeeUpload(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        
+        # Extract company details
+        name = data.get('companyName')
+        addr = data.get('companyAddress')
+        phone = data.get('companyPhone')
+        dept_names_str = data.get('deptName')
+        dept_names = [name.strip() for name in dept_names_str.split(',')]
+        employees = data.get('employees', [])
+
+        # Validate company data
+        if not name or not addr or not phone or not dept_names or not employees:
+            return JsonResponse({'error': 'Required fields are missing'}, status=400)
+
+        # Create the company
+        new_company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
+        company_id = new_company.id
+
+        # Create departments and get the first department's ID
+        first_dept_id = None
+        for dept_name in dept_names:
+            new_dept = Department.objects.create(d_name=dept_name, c_id=new_company)
+            if first_dept_id is None:
+                first_dept_id = new_dept.id
+
+        # Create employees
+        for emp in employees:
+            emp_name = emp.get('empName')
+            emp_email = emp.get('empMail')
+            emp_phone = emp.get('empNum')
+            emp_skills = emp.get('empSkills')
+
+            if not emp_name or not emp_email or not emp_phone or not emp_skills:
+                return JsonResponse({'error': 'Employee data is incomplete'}, status=400)
+
+            # Create employee record
+            Employee.objects.create(
+                emp_name=emp_name,
+                emp_emailid=emp_email,
+                emp_skills=emp_skills,
+                emp_role='Employee',  # Default role for new employees
+                emp_phone=emp_phone,
+                d_id_id=first_dept_id
+            )
+
+        return JsonResponse({'message': 'Company and employees registration successful'}, status=201)
+    else:
+        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
