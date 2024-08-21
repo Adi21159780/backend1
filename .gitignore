@@ -12,6 +12,7 @@ environment
 happ
 hap
 env
+venv
 # Thumbnails
 ._*
 
