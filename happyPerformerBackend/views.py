@@ -24,6 +24,13 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from django.core.exceptions import ObjectDoesNotExist
 
+import openpyxl
+from django.core.files.storage import default_storage
+
+
+
+
+
 @csrf_exempt
 def Home(request):
     return JsonResponse({"data":"Welcome to happy backsideeee hehe"})
@@ -4617,6 +4624,9 @@ def SOPForm(request):
             sdate = request.POST.get('sdate')
             sop_file = request.FILES.get('sop_file')
             d_id = request.POST.get('d_id')
+
+            # Debugging print statements
+            # print(f"sop_id: {sop_id}, type: {type}, s_name: {s_name}, sdate: {sdate}, sop_file: {sop_file}, d_id: {d_id}")
             
             # Save the SOP entry
             sop_entry = Sop(
@@ -4637,63 +4647,140 @@ def SOPForm(request):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
+#With json file
+# @csrf_exempt
+# def bulkEmployeeUpload(request):
+#     if request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#         except json.JSONDecodeError:
+#             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
 
+#         # Extract company details
+#         name = data.get('companyName')
+#         addr = data.get('companyAddress')
+#         phone = data.get('companyPhone')
+#         dept_names_str = data.get('deptName')
+#         dept_names = [name.strip() for name in dept_names_str.split(',')]
+#         employees = data.get('employees', [])
+
+#         # Validate company data
+#         if not name or not addr or not phone or not dept_names or not employees:
+#             return JsonResponse({'error': 'Required fields are missing'}, status=400)
+
+#         # Create the company
+#         new_company = Company.objects.create(
+#             c_name=name, 
+#             c_addr=addr, 
+#             c_phone=phone
+#         )
+#         company_id = new_company.pk  # Get the primary key of the newly created company
+
+#         # Create departments and get the first department's ID
+#         first_dept_id = None
+#         for dept_name in dept_names:
+#             new_dept = Department.objects.create(d_name=dept_name, c_id=new_company)
+#             if first_dept_id is None:
+#                 first_dept_id = new_dept.pk  # Get the primary key of the first department
+
+#         # Create employees
+#         for emp in employees:
+#             emp_name = emp.get('empName')
+#             emp_email = emp.get('empMail')
+#             emp_phone = emp.get('empNum')
+#             emp_skills = emp.get('empSkills')
+
+#             # Validate employee data
+#             if not emp_name or not emp_email or not emp_phone or not emp_skills:
+#                 return JsonResponse({'error': 'Employee data is incomplete'}, status=400)
+
+#             # Create employee record
+#             Employee.objects.create(
+#                 emp_name=emp_name,
+#                 emp_emailid=emp_email,
+#                 emp_skills=emp_skills,
+#                 emp_role='Super Manager',  # Or use a default role if appropriate
+#                 emp_phone=emp_phone,
+#                 d_id_id=first_dept_id
+#             )
+
+#         return JsonResponse({'message': 'Company and employees registration successful'}, status=201)
+#     else:
+#         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+
+
+#With excel file
+@role_required(['HR', 'Manager', 'Super Manager'])
 @csrf_exempt
 def bulkEmployeeUpload(request):
     if request.method == 'POST':
+        file = request.FILES.get('employeeFile')
+        if not file:
+            return JsonResponse({'error': 'No file uploaded'}, status=400)
+
+        # Save the uploaded file temporarily
+        file_name = default_storage.save(file.name, file)
+        file_path = default_storage.path(file_name)
+
         try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+            # Load the workbook and select the active worksheet
+            workbook = openpyxl.load_workbook(file_path)
+            worksheet = workbook.active
 
-        # Extract company details
-        name = data.get('companyName')
-        addr = data.get('companyAddress')
-        phone = data.get('companyPhone')
-        dept_names_str = data.get('deptName')
-        dept_names = [name.strip() for name in dept_names_str.split(',')]
-        employees = data.get('employees', [])
+            # Assuming the first row contains headers
+            company_name = worksheet['A2'].value
+            company_address = worksheet['B2'].value
+            company_phone = worksheet['C2'].value
 
-        # Validate company data
-        if not name or not addr or not phone or not dept_names or not employees:
-            return JsonResponse({'error': 'Required fields are missing'}, status=400)
-
-        # Create the company
-        new_company = Company.objects.create(
-            c_name=name, 
-            c_addr=addr, 
-            c_phone=phone
-        )
-        company_id = new_company.pk  # Get the primary key of the newly created company
-
-        # Create departments and get the first department's ID
-        first_dept_id = None
-        for dept_name in dept_names:
-            new_dept = Department.objects.create(d_name=dept_name, c_id=new_company)
-            if first_dept_id is None:
-                first_dept_id = new_dept.pk  # Get the primary key of the first department
-
-        # Create employees
-        for emp in employees:
-            emp_name = emp.get('empName')
-            emp_email = emp.get('empMail')
-            emp_phone = emp.get('empNum')
-            emp_skills = emp.get('empSkills')
-
-            # Validate employee data
-            if not emp_name or not emp_email or not emp_phone or not emp_skills:
-                return JsonResponse({'error': 'Employee data is incomplete'}, status=400)
-
-            # Create employee record
-            Employee.objects.create(
-                emp_name=emp_name,
-                emp_emailid=emp_email,
-                emp_skills=emp_skills,
-                emp_role='Super Manager',  # Or use a default role if appropriate
-                emp_phone=emp_phone,
-                d_id_id=first_dept_id
+            # Create the company entry
+            new_company = Company.objects.create(
+                c_name=company_name,
+                c_addr=company_address,
+                c_phone=company_phone
             )
 
-        return JsonResponse({'message': 'Company and employees registration successful'}, status=201)
-    else:
-        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+            # Create departments and store their IDs
+            department_names = set()
+            for row in worksheet.iter_rows(min_row=2, values_only=True):
+                dept_name = row[3]
+                department_names.add(dept_name)
+
+            department_map = {}
+            for dept_name in department_names:
+                new_dept = Department.objects.create(
+                    d_name=dept_name,
+                    c_id=new_company
+                )
+                department_map[dept_name] = new_dept.pk  # Map department names to their IDs
+
+            # Iterate through the worksheet and create employees
+            for row in worksheet.iter_rows(min_row=2, values_only=True):
+                emp_name = row[4]
+                emp_email = row[5]
+                emp_phone = row[6]
+                emp_skills = row[7]
+                emp_role = row[8]
+                dept_name = row[3]  # The department name in the current row
+
+                # Validate employee data
+                if not emp_name or not emp_email or not emp_phone or not emp_skills or not dept_name:
+                    return JsonResponse({'error': 'Employee data is incomplete in the uploaded file'}, status=400)
+
+                # Create employee record
+                Employee.objects.create(
+                    emp_name=emp_name,
+                    emp_emailid=emp_email,
+                    emp_skills=emp_skills,
+                    emp_role=emp_role,
+                    emp_phone=emp_phone,
+                    d_id_id=department_map[dept_name]  # Use the mapped department ID
+                )
+
+            return JsonResponse({'message': 'Employees uploaded successfully'}, status=201)
+        except Exception as e:
+            return JsonResponse({'error': f'Failed to process the file: {str(e)}'}, status=500)
+        finally:
+            # Clean up: delete the file after processing
+            default_storage.delete(file_name)
+
+    return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
