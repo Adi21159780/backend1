@@ -123,6 +123,7 @@ urlpatterns = [
     path('job_desc/<int:jid>/manager_rating/', views.update_manager_rating, name='update_manager_rating'),
     path('jdlist/', views.jdlist, name='jdlist'),
     path('managerrating/jds/', views.managerrating_jd, name='managerrating_jd'),
+    path('calendar/', views.event_handler, name='event_handler'),
 
     
     # Add other paths here

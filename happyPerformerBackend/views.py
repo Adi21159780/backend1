@@ -125,37 +125,88 @@ def Logout(request):
 
 # NOTE
 # ***Department name should contain Super Manager at last ***
+# @csrf_exempt
+# def Register(request):
+#     if request.method == 'POST':
+#         data = json.loads(request.body)
+
+#         name = data.get('companyName')
+#         addr = data.get('companyAddress')
+#         phone = data.get('companyPhone')
+#         dept_names_str = data.get('deptName')
+#         dept_names = [name.strip() for name in dept_names_str.split(',')]
+#         emp_name = data.get('empName')
+#         emp_email = data.get('empMail')
+#         emp_phone = data.get('empNum')
+#         emp_skills = data.get('empSkills')
+
+#         new_company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
+
+#         company_id = Company.objects.order_by('-pk').first()
+
+#         first_dept_id = None
+#         for dept_name in dept_names:
+#             new_dept = Department.objects.create(d_name=dept_name, c_id=company_id)
+#             if first_dept_id is None:
+#                 first_dept_id = Department.objects.order_by('-pk').first()
+
+#         Employee.objects.create(emp_name=emp_name, emp_emailid=emp_email, emp_skills=emp_skills, emp_role='Super Manager', emp_pwd='changeme', emp_phone=emp_phone, d_id=first_dept_id)
+
+#         return JsonResponse({'message': 'Company registration successful'}, status=201)
+#     else:
+#         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+    
+# 
+    
 @csrf_exempt
 def Register(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
+        try:
+            data = json.loads(request.body)
 
-        name = data.get('companyName')
-        addr = data.get('companyAddress')
-        phone = data.get('companyPhone')
-        dept_names_str = data.get('deptName')
-        dept_names = [name.strip() for name in dept_names_str.split(',')]
-        emp_name = data.get('empName')
-        emp_email = data.get('empMail')
-        emp_phone = data.get('empNum')
-        emp_skills = data.get('empSkills')
+            # Extract company details
+            name = data.get('companyName')
+            addr = data.get('companyAddress')
+            phone = data.get('companyPhone')
+            dept_names_str = data.get('deptName')
+            dept_names = [name.strip() for name in dept_names_str.split(',')]
 
-        new_company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
+            # Extract employee details
+            emp_name = data.get('empName')
+            emp_email = data.get('empMail')
+            emp_phone = data.get('empNum')
+            emp_pwd = data.get('emp_pwd', 'changeme')  # Default to 'changeme' if not provided
+            emp_skills = data.get('empSkills')
 
-        company_id = Company.objects.order_by('-pk').first()
+            # Create the company
+            new_company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
+            company_id = Company.objects.order_by('-pk').first()
 
-        first_dept_id = None
-        for dept_name in dept_names:
-            new_dept = Department.objects.create(d_name=dept_name, c_id=company_id)
-            if first_dept_id is None:
-                first_dept_id = Department.objects.order_by('-pk').first()
+            # Create departments and get the first department's ID
+            first_dept_id = None
+            for dept_name in dept_names:
+                new_dept = Department.objects.create(d_name=dept_name, c_id=company_id)
+                if first_dept_id is None:
+                    first_dept_id = new_dept
 
-        Employee.objects.create(emp_name=emp_name, emp_emailid=emp_email, emp_skills=emp_skills, emp_role='Super Manager', emp_phone=emp_phone, d_id=first_dept_id)
+            # Create the employee
+            Employee.objects.create(
+                emp_name=emp_name,
+                emp_emailid=emp_email,
+                emp_skills=emp_skills,
+                emp_role='Super Manager',
+                emp_phone=emp_phone,
+                emp_pwd=emp_pwd,
+                d_id=first_dept_id
+            )
 
-        return JsonResponse({'message': 'Company registration successful'}, status=201)
+            return JsonResponse({'message': 'Company registration successful'}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
     else:
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
-
 
 # incomplete , need to complete and add session
 @csrf_exempt
@@ -4813,3 +4864,52 @@ def managerrating_jd(request):
         return JsonResponse({"job_descriptions": jd_data}, status=200)
 
     return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+@csrf_exempt
+def event_handler(request):
+    if request.method == 'POST':
+        # Add new event
+        data = json.loads(request.body)
+        emp_emailid = request.session.get('emp_emailid')
+        if not emp_emailid:
+            return JsonResponse({'error': 'User not logged in'}, status=401)
+
+        event = Events.objects.create(
+            evt_type=data.get('evt_type'),
+            evt_start=data.get('evt_start'),
+            evt_end=data.get('evt_end'),
+            evt_text=data.get('evt_text'),
+            evt_color=data.get('evt_color'),
+            status=data.get('status', False),
+            emp_emailid=emp_emailid
+        )
+        return JsonResponse({'evt_id': event.evt_id}, status=201)
+
+    elif request.method == 'PUT':
+        # Update existing event
+        data = json.loads(request.body)
+        evt_id = data.get('evt_id')
+        emp_emailid = request.session.get('emp_emailid')
+        event = get_object_or_404(Events, pk=evt_id, emp_emailid=emp_emailid)
+        
+        event.evt_type = data.get('evt_type', event.evt_type)
+        event.evt_start = data.get('evt_start', event.evt_start)
+        event.evt_end = data.get('evt_end', event.evt_end)
+        event.evt_text = data.get('evt_text', event.evt_text)
+        event.evt_color = data.get('evt_color', event.evt_color)
+        event.status = data.get('status', event.status)
+        event.save()
+
+        return JsonResponse({'evt_id': event.evt_id}, status=200)
+
+    elif request.method == 'DELETE':
+        # Delete an event
+        data = json.loads(request.body)
+        evt_id = data.get('evt_id')
+        emp_emailid = request.session.get('emp_emailid')
+        event = get_object_or_404(Events, pk=evt_id, emp_emailid=emp_emailid)
+        event.delete()
+        return HttpResponse(status=204)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
