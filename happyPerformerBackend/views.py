@@ -4572,40 +4572,92 @@ def JDForm(request):
 
 @csrf_exempt
 @role_required(['Manager', 'Super Manager'])
+# def KRAForm(request):
+#     company_id = request.session.get('c_id')
+#     user_name = request.session.get('emp_name')
+#     if not company_id or not user_name:
+#         return JsonResponse({'error': 'Required session data not found'}, status=401)
+#     elif request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+
+#             kra = data.get('kra')
+#             weightage = data.get('weightage')
+#             kpi = data.get('kpi')
+#             measurement = data.get('measurement')
+#             email_ids = data.get('email_ids', [])
+#             submission_date = data.get('submission_date')
+
+#             for email_id in email_ids:
+#                 kra_desc = Kra_desc.objects.create(
+#                     KRA=kra,
+#                     Weightage=weightage,
+#                     KPI=kpi,
+#                     Measurement=measurement,
+#                     email_id=email_id, 
+#                     submission_date = submission_date,
+#                 )
+#                 kra_desc.save()
+            
+#             return JsonResponse({'status': 'KRA assigned successfully'}, status=201)
+#         except json.JSONDecodeError:
+#             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+#         except KeyError as e:
+#             return JsonResponse({'error': f'Missing key: {str(e)}'}, status=400)
+
+#     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
 def KRAForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
     if not company_id or not user_name:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
+    
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
 
-            kra = data.get('kra')
-            weightage = data.get('weightage')
-            kpi = data.get('kpi')
-            measurement = data.get('measurement')
+            # Extracting the required fields
+            kras = data.get('kras', [])
             email_ids = data.get('email_ids', [])
             submission_date = data.get('submission_date')
 
-            for email_id in email_ids:
-                kra_desc = Kra_desc.objects.create(
-                    KRA=kra,
-                    Weightage=weightage,
-                    KPI=kpi,
-                    Measurement=measurement,
-                    email_id=email_id, 
-                    submission_date = submission_date,
-                )
-                kra_desc.save()
-            
-            return JsonResponse({'status': 'KRA assigned successfully'}, status=201)
+            # Validating the data
+            if not kras or not email_ids or not submission_date:
+                return JsonResponse({'error': 'Incomplete data provided'}, status=400)
+
+            for kra_data in kras:
+                kra = kra_data.get('kra')
+                weightage = kra_data.get('weightage')
+                kpi = kra_data.get('kpi')
+                measurement = kra_data.get('measurement')
+
+                if not kra or not weightage or not kpi or not measurement:
+                    return JsonResponse({'error': 'Incomplete KRA data'}, status=400)
+
+                # Creating KRA records for each employee
+                for email_id in email_ids:
+                    kra_desc = Kra_desc.objects.create(
+                        KRA=kra,
+                        Weightage=weightage,
+                        KPI=kpi,
+                        Measurement=measurement,
+                        email_id=email_id,
+                        submission_date=submission_date,
+                    )
+                    kra_desc.save()
+
+            return JsonResponse({'status': 'KRA(s) assigned successfully'}, status=201)
+
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
         except KeyError as e:
             return JsonResponse({'error': f'Missing key: {str(e)}'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
 
 
 @csrf_exempt
@@ -4710,8 +4762,8 @@ def SOPForm(request):
 
 
 #With excel file
-@role_required(['HR', 'Manager', 'Super Manager'])
 @csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
 def bulkEmployeeUpload(request):
     if request.method == 'POST':
         file = request.FILES.get('employeeFile')
