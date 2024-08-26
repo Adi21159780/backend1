@@ -4525,49 +4525,74 @@ def MarkAttendance(request):
         
 @csrf_exempt
 @role_required(['Manager', 'Super Manager'])
+
 def JDForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
 
     if not company_id or not user_name:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
+    
+    if request.method == 'GET':
+        try:
+            # Fetch all employee email IDs
+            employees = Employee.objects.values_list('emp_emailid', flat=True)
+            return JsonResponse({'employee_email_ids': list(employees)}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
     elif request.method == 'POST':
-        # Assuming data is sent in JSON format from React app
-        data = json.loads(request.body)
+        try:
+            # Load the JSON data
+            data = json.loads(request.body)
 
-        jd_name = data.get('jd_name')
-        responsibilities = data.get('responsibilities')
-        sdate = data.get('sdate')
-        email_ids = data.get('email_ids', [])
-        jid = data.get('jid')
+            # Extract the required fields
+            jd_name = data.get('jd_name')
+            responsibilities = data.get('responsibilities', [])
+            sdate = data.get('sdate')
+            email_ids = data.get('email_ids', [])
+            jid = data.get('jid')  # Expecting a numeric value for jid
 
+            # Validate the input data
+            if not jd_name or not responsibilities or not sdate or not email_ids or jid is None:
+                return JsonResponse({'error': 'All fields are required.'}, status=400)
 
-        if not jd_name or not responsibilities or not sdate or not jid:
-            return JsonResponse({'error': 'All fields are required.'}, status=400)
+            if not isinstance(responsibilities, list) or not isinstance(email_ids, list):
+                return JsonResponse({'error': 'Responsibilities and email_ids should be arrays.'}, status=400)
 
-        for email_id in email_ids:
-            if not Employee.objects.filter(emp_emailid=email_id).exists():
-                # Return an error if any email ID does not exist in the registered employee list
-                return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
+            # Check if all email IDs are valid
+            for email_id in email_ids:
+                if not Employee.objects.filter(emp_emailid=email_id).exists():
+                    return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
 
+            # Create Job Description entries for each employee
+            for email_id in email_ids:
+                try:
+                    # Check if the employee exists
+                    employee = Employee.objects.get(emp_emailid=email_id)
+                    
+                    # Create the Job Description entry
+                    job_desc = Job_desc.objects.create(
+                        jd_name=jd_name,
+                        responsiblities=", ".join(responsibilities),  # Use the correct field name
+                        sdate=sdate,
+                        email_id=email_id,
+                        jid=jid  # Use the numeric jid provided from the frontend
+                    )
+                    job_desc.save()
 
-        for email_id in email_ids:
-            try:
-                # Check if the employee with the given email ID exists
-                employee = Employee.objects.get(emp_emailid=email_id)
-                job_desc = Job_desc.objects.create(
-                    jd_name=jd_name,
-                    responsiblities=responsibilities,
-                    sdate=sdate,
-                    email_id=email_id,
-                    jid=jid
-                )
-                job_desc.save()
-            except Employee.DoesNotExist:
-                # If the employee does not exist, return an error
-                return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
-        return JsonResponse({'status': 'JD assigned successfully.'}, status=201)
+                except Employee.DoesNotExist:
+                    return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
+
+            return JsonResponse({'status': 'JD assigned successfully.'}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
 
 
 @csrf_exempt
@@ -4606,7 +4631,6 @@ def JDForm(request):
 #             return JsonResponse({'error': f'Missing key: {str(e)}'}, status=400)
 
 #     return JsonResponse({'error': 'Invalid request method'}, status=400)
-
 
 def KRAForm(request):
     company_id = request.session.get('c_id')
