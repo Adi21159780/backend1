@@ -4607,12 +4607,21 @@ def JDForm(request):
 
 #     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
+
 def KRAForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
     if not company_id or not user_name:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
-    
+    if request.method == 'GET':
+        try:
+            # Fetch all employee email IDs
+            employees = Employee.objects.values_list('emp_emailid', flat=True)
+            return JsonResponse({'employee_email_ids': list(employees)}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+   
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
