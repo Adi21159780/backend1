@@ -27,6 +27,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import openpyxl
 from django.core.files.storage import default_storage
 import pandas as pd
+from django.db.models import Max
 
 
 
@@ -1200,36 +1201,112 @@ def UpdateEmployeeDetails(request):
 
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
-def JDForms(request):
-    if request.method == 'POST':
-        res = request.POST.getlist('res[]')
-        role = request.POST.get('role')
-        sdate = request.POST.get('date')
-        emp_emails = request.POST.getlist('eemail[]')
+# def JDForms(request):
+#     if request.method == 'POST':
+#         res = request.POST.getlist('res[]')
+#         role = request.POST.get('role')
+#         sdate = request.POST.get('date')
+#         emp_emails = request.POST.getlist('eemail[]')
 
-        if not (res and role and sdate and emp_emails):
-            return JsonResponse({'error': 'All fields are required!'}, status=400)
+#         if not (res and role and sdate and emp_emails):
+#             return JsonResponse({'error': 'All fields are required!'}, status=400)
 
+#         try:
+#             sdate = datetime.datetime.strptime(sdate, '%Y-%m-%d').date()
+#         except ValueError:
+#             return JsonResponse({'error': 'Invalid date format!'}, status=400)
+
+#         for emp_email in emp_emails:
+#             if not Employee.objects.filter(emp_emailid=emp_email).exists():
+#                 return JsonResponse({'error': f'Employee with email {emp_email} does not exist!'}, status=400)
+
+#         try:
+#             jd_instance = Job_desc.objects.create(jd_name=role, sdate=sdate)
+
+#             for emp_email in emp_emails:
+#                 for responsibility in res:
+#                     Tasks.objects.create(job_desc_id=jd_instance, responsiblities=responsibility, emp_emailid=emp_email, sdate=sdate)
+
+#             return JsonResponse({'message': 'Form submitted successfully!'})
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+
+
+def JDForm(request):
+    company_id = request.session.get('c_id')
+    user_name = request.session.get('emp_name')
+
+    if not company_id or not user_name:
+        return JsonResponse({'error': 'Required session data not found'}, status=401)
+
+    if request.method == 'GET':
         try:
-            sdate = datetime.datetime.strptime(sdate, '%Y-%m-%d').date()
-        except ValueError:
-            return JsonResponse({'error': 'Invalid date format!'}, status=400)
-
-        for emp_email in emp_emails:
-            if not Employee.objects.filter(emp_emailid=emp_email).exists():
-                return JsonResponse({'error': f'Employee with email {emp_email} does not exist!'}, status=400)
-
-        try:
-            jd_instance = Job_desc.objects.create(jd_name=role, sdate=sdate)
-
-            for emp_email in emp_emails:
-                for responsibility in res:
-                    Tasks.objects.create(job_desc_id=jd_instance, responsiblities=responsibility, emp_emailid=emp_email, sdate=sdate)
-
-            return JsonResponse({'message': 'Form submitted successfully!'})
+            # Fetch all employee email IDs
+            employees = Employee.objects.values_list('emp_emailid', flat=True)
+            return JsonResponse({'employee_email_ids': list(employees)}, status=200)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+    elif request.method == 'POST':
+        try:
+            # Load the JSON data
+            data = json.loads(request.body)
+
+            # Extract the required fields
+            jd_name = data.get('jd_name')
+            responsibilities = data.get('responsibilities', [])
+            sdate = data.get('sdate')
+            email_ids = data.get('email_ids', [])
+
+            # Validate the input data
+            if not jd_name or not responsibilities or not sdate or not email_ids:
+                return JsonResponse({'error': 'All fields are required.'}, status=400)
+
+            if not isinstance(responsibilities, list) or not isinstance(email_ids, list):
+                return JsonResponse({'error': 'Responsibilities and email_ids should be arrays.'}, status=400)
+
+            # Get or create the jid based on jd_name
+            job_desc_entry = Job_desc.objects.filter(jd_name=jd_name).first()
+            if job_desc_entry:
+                jid = job_desc_entry.jid
+            else:
+                # Generate a new jid if jd_name is new
+                max_jid = Job_desc.objects.aggregate(max_jid=Max('jid'))['max_jid']
+                jid = (max_jid + 1) if max_jid is not None else 1
+
+            # Create Job Description and Task entries for each employee
+            for email_id in email_ids:
+                try:
+                    # Check if the employee exists
+                    employee = Employee.objects.get(emp_emailid=email_id)
+                    
+                    # Create the Job Description entry
+                    job_desc = Job_desc.objects.create(
+                        jd_name=jd_name,
+                        responsibilities=", ".join(responsibilities),
+                        sdate=sdate,
+                        email_id=email_id,
+                        jid=jid
+                    )
+                    
+                    # Create the Task entry with the same data
+                    Tasks.objects.create(
+                        jd_desc_id=jid,  # Use jid for jd_desc_id
+                        emp_emailid=email_id,
+                        sdate=sdate
+                    )
+
+                except Employee.DoesNotExist:
+                    return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
+
+            return JsonResponse({'status': 'JD assigned successfully.'}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
@@ -4525,13 +4602,81 @@ def MarkAttendance(request):
         
 @csrf_exempt
 @role_required(['Manager', 'Super Manager'])
+# def JDForm(request):
+#     company_id = request.session.get('c_id')
+#     user_name = request.session.get('emp_name')
+
+#     if not company_id or not user_name:
+#         return JsonResponse({'error': 'Required session data not found'}, status=401)
+    
+#     if request.method == 'GET':
+#         try:
+#             # Fetch all employee email IDs
+#             employees = Employee.objects.values_list('emp_emailid', flat=True)
+#             return JsonResponse({'employee_email_ids': list(employees)}, status=200)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+
+#     elif request.method == 'POST':
+#         try:
+#             # Load the JSON data
+#             data = json.loads(request.body)
+
+#             # Extract the required fields
+#             jd_name = data.get('jd_name')
+#             responsibilities = data.get('responsibilities', [])
+#             sdate = data.get('sdate')
+#             email_ids = data.get('email_ids', [])
+#             # jid = data.get('jid')  # Expecting a numeric value for jid
+
+#             # Validate the input data
+#             if not jd_name or not responsibilities or not sdate or not email_ids or jid is None:
+#                 return JsonResponse({'error': 'All fields are required.'}, status=400)
+
+#             if not isinstance(responsibilities, list) or not isinstance(email_ids, list):
+#                 return JsonResponse({'error': 'Responsibilities and email_ids should be arrays.'}, status=400)
+
+#             # Check if all email IDs are valid
+#             for email_id in email_ids:
+#                 if not Employee.objects.filter(emp_emailid=email_id).exists():
+#                     return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
+
+#             # Create Job Description entries for each employee
+#             for email_id in email_ids:
+#                 try:
+#                     # Check if the employee exists
+#                     employee = Employee.objects.get(emp_emailid=email_id)
+                    
+#                     # Create the Job Description entry
+#                     job_desc = Job_desc.objects.create(
+#                         jd_name=jd_name,
+#                         responsiblities=", ".join(responsibilities),  # Use the correct field name
+#                         sdate=sdate,
+#                         email_id=email_id,
+#                         jid=jid  # Use the numeric jid provided from the frontend
+#                     )
+#                     job_desc.save()
+
+#                 except Employee.DoesNotExist:
+#                     return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
+
+#             return JsonResponse({'status': 'JD assigned successfully.'}, status=201)
+
+#         except json.JSONDecodeError:
+#             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+
+#     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
 def JDForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
 
     if not company_id or not user_name:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
-    
+
     if request.method == 'GET':
         try:
             # Fetch all employee email IDs
@@ -4547,24 +4692,27 @@ def JDForm(request):
 
             # Extract the required fields
             jd_name = data.get('jd_name')
-            responsibilities = data.get('responsibilities', [])
+            responsibilities = data.get('responsiblities', [])  # Make sure to use the correct field name
             sdate = data.get('sdate')
             email_ids = data.get('email_ids', [])
-            jid = data.get('jid')  # Expecting a numeric value for jid
 
             # Validate the input data
-            if not jd_name or not responsibilities or not sdate or not email_ids or jid is None:
+            if not jd_name or not responsibilities or not sdate or not email_ids:
                 return JsonResponse({'error': 'All fields are required.'}, status=400)
 
             if not isinstance(responsibilities, list) or not isinstance(email_ids, list):
                 return JsonResponse({'error': 'Responsibilities and email_ids should be arrays.'}, status=400)
 
-            # Check if all email IDs are valid
-            for email_id in email_ids:
-                if not Employee.objects.filter(emp_emailid=email_id).exists():
-                    return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
+            # Get or create the jid based on jd_name
+            job_desc_entry = Job_desc.objects.filter(jd_name=jd_name).first()
+            if job_desc_entry:
+                jid = job_desc_entry.jid
+            else:
+                # Generate a new jid if jd_name is new
+                max_jid = Job_desc.objects.aggregate(max_jid=Max('jid'))['max_jid']
+                jid = (max_jid + 1) if max_jid is not None else 1
 
-            # Create Job Description entries for each employee
+            # Create Job Description and Task entries for each employee
             for email_id in email_ids:
                 try:
                     # Check if the employee exists
@@ -4573,12 +4721,12 @@ def JDForm(request):
                     # Create the Job Description entry
                     job_desc = Job_desc.objects.create(
                         jd_name=jd_name,
-                        responsiblities=", ".join(responsibilities),  # Use the correct field name
+                        responsiblities=", ".join(responsibilities),  # Make sure the model field name matches
                         sdate=sdate,
                         email_id=email_id,
-                        jid=jid  # Use the numeric jid provided from the frontend
+                        jid=jid
                     )
-                    job_desc.save()
+                    
 
                 except Employee.DoesNotExist:
                     return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
@@ -4591,8 +4739,6 @@ def JDForm(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
-
-
 
 @csrf_exempt
 @role_required(['Manager', 'Super Manager'])
