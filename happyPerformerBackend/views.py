@@ -5144,6 +5144,8 @@ def bulkUploadEmployeeDetailsUpload(request):
     
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
+
+
 # def bulkUploadEmployeeDetailsUpload(request):
 #     company_id = request.session.get('c_id')
 #     user_name = request.session.get('emp_name')
