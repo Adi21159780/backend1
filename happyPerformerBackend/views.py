@@ -4525,7 +4525,6 @@ def MarkAttendance(request):
         
 @csrf_exempt
 @role_required(['Manager', 'Super Manager'])
-
 def JDForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -4807,15 +4806,13 @@ def bulkUploadEmployeeDetailsUpload(request):
     
     if request.method == 'POST':
         try:
-            # Function to validate if email exists in Employee table
-            def is_employee_email_valid(email):
-                try:
-                    return Employee.objects.get(emp_emailid=email)
-                except Employee.DoesNotExist:
-                    return False
+            # Function to get or create an Employee object by email
+            def get_or_create_employee(email):
+                employee, created = Employee.objects.get_or_create(emp_emailid=email)
+                return employee
 
-            # A list to store invalid emails
-            invalid_emails = []
+            # A list to store errors
+            errors = []
 
             # Handling personal details Excel file
             if 'personal_details' in request.FILES:
@@ -4824,59 +4821,175 @@ def bulkUploadEmployeeDetailsUpload(request):
 
                 for _, row in df_personal.iterrows():
                     email = row.get('emp_emailid').strip().lower()
-                    employee = is_employee_email_valid(email)
-                    if employee:
-                        try:
-                            Personal_details.objects.create(
-                                first_name=row.get('first_name'),
-                                last_name=row.get('last_name'),
-                                Contact=row.get('Contact'),
-                                emergency_name=row.get('emergency_name'),
-                                emergency_contact=row.get('emergency_contact'),
-                                gender=row.get('gender'),
-                                birth_date=row.get('birth_date'),
-                                address=row.get('address'),
-                                city=row.get('city'),
-                                district=row.get('district'),
-                                post_code=row.get('post_code'),
-                                state=row.get('state'),
-                                emp_emailid=employee.id  # Use the Employee primary key
-                            )
-                        except Exception as e:
-                            invalid_emails.append(f"{email}: {str(e)}")   
-                    else:
-                        invalid_emails.append(email)
+                    employee = get_or_create_employee(email)
+                    try:
+                        personal_details, created = Personal_details.objects.update_or_create(
+                            mail=employee,  # Use the correct ForeignKey field, which references Employee instance
+                            defaults={
+                                'first_name': row.get('first_name'),
+                                'last_name': row.get('last_name'),
+                                'Contact': row.get('Contact'),
+                                'emergency_name': row.get('emergency_name'),
+                                'emergency_contact': row.get('emergency_contact'),
+                                'gender': row.get('gender'),
+                                'birth_date': row.get('birth_date'),
+                                'address': row.get('address'),
+                                'city': row.get('city'),
+                                'district': row.get('district'),
+                                'post_code': row.get('post_code'),
+                                'state': row.get('state'),
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{email}: {str(e)}")
 
-            # Repeat similar modifications for other sections (bank details, dependent details, etc.)
-            # Example:
+            # Handling bank details Excel file
             if 'bank_details' in request.FILES:
                 bank_details_file = request.FILES['bank_details']
                 df_bank = pd.read_excel(bank_details_file)
 
                 for _, row in df_bank.iterrows():
                     email = row.get('emp_emailid').strip().lower()
-                    employee = is_employee_email_valid(email)
-                    if employee:
-                        try:
-                            Bank_details.objects.create(
-                                holder_name=row.get('holder_name'),
-                                bank_name=row.get('bank_name'),
-                                acc_no=row.get('acc_no'),
-                                branch=row.get('branch'),
-                                acc_type=row.get('acc_type'),
-                                ifsc=row.get('ifsc'),
-                                Pan_no=row.get('Pan_no'),
-                                emp_emailid=employee.id  # Use the Employee primary key
-                            )
-                        except Exception as e:
-                            invalid_emails.append(f"{email}: {str(e)}")  
-                    else:
-                        invalid_emails.append(email)
+                    employee = get_or_create_employee(email)
+                    try:
+                        # Either update or create the bank details
+                        bank_details, created = Bank_details.objects.update_or_create(
+                            emp_emailid=employee,  # Use the Employee instance
+                            defaults={
+                                'holder_name': row.get('holder_name'),
+                                'bank_name': row.get('bank_name'),
+                                'acc_no': row.get('acc_no'),
+                                'branch': row.get('branch'),
+                                'acc_type': row.get('acc_type'),
+                                'ifsc': row.get('ifsc'),
+                                'Pan_no': row.get('Pan_no'),
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{email}: {str(e)}")
 
-            # Continue similar changes for other parts of the code...
+            # Handling dependent details Excel file
+            if 'dependent_details' in request.FILES:
+                dependent_file = request.FILES['dependent_details']
+                df_dependent = pd.read_excel(dependent_file)
 
-            if invalid_emails:
-                return JsonResponse({'status': 'Some records were not saved due to invalid email IDs', 'invalid_emails': invalid_emails}, status=400)
+                for _, row in df_dependent.iterrows():
+                    email = row.get('emp_emailid').strip().lower()
+                    employee = get_or_create_employee(email)
+                    try:
+                        # Either update or create the dependent details
+                        dependent, created = Dependent.objects.update_or_create(
+                            emp_emailid=employee,  # Use the Employee instance
+                            defaults={
+                                'D_name': row.get('D_name'),
+                                'D_gender': row.get('D_gender'),
+                                'D_dob': row.get('D_dob'),
+                                'D_relation': row.get('D_relation'),
+                                'D_desc': row.get('D_desc'),
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{email}: {str(e)}")
+
+            # Handling family details Excel file
+            if 'family_details' in request.FILES:
+                family_file = request.FILES['family_details']
+                df_family = pd.read_excel(family_file)
+
+                for _, row in df_family.iterrows():
+                    email = row.get('emp_emailid').strip().lower()
+                    employee = get_or_create_employee(email)
+                    try:
+                        # Either update or create the family details
+                        family_details, created = Family_details.objects.update_or_create(
+                            emp_emailid=employee,  # Use the Employee instance
+                            defaults={
+                                'F_name': row.get('F_name'),
+                                'F_gender': row.get('F_gender'),
+                                'F_dob': row.get('F_dob'),
+                                'F_contact': row.get('F_contact'),
+                                'F_mail': row.get('F_mail'),
+                                'F_relation': row.get('F_relation'),
+                                'F_comment': row.get('F_comment'),
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{email}: {str(e)}")
+
+            # Handling job info Excel file
+            if 'job_info' in request.FILES:
+                job_info_file = request.FILES['job_info']
+                df_job = pd.read_excel(job_info_file)
+
+                for _, row in df_job.iterrows():
+                    email = row.get('emp_emailid').strip().lower()
+                    employee = get_or_create_employee(email)
+                    try:
+                        # Either update or create the job info
+                        job_info, created = Job_info.objects.update_or_create(
+                            emp_emailid=employee,  # Use the Employee instance
+                            defaults={
+                                'job_title': row.get('job_title'),
+                                'department': row.get('department'),
+                                'working_type': row.get('working_type'),
+                                'start_date': row.get('start_date'),
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{email}: {str(e)}")
+
+            # Handling qualification details Excel file
+            if 'qualification_details' in request.FILES:
+                qualification_file = request.FILES['qualification_details']
+                df_qualification = pd.read_excel(qualification_file)
+
+                for _, row in df_qualification.iterrows():
+                    email = row.get('emp_emailid').strip().lower()
+                    employee = get_or_create_employee(email)
+                    try:
+                        # Either update or create the qualification details
+                        qualification, created = Qualification.objects.update_or_create(
+                            emp_emailid=employee,  # Use the Employee instance
+                            defaults={
+                                'q_type': row.get('q_type'),
+                                'q_degree': row.get('q_degree'),
+                                'q_clg': row.get('q_clg'),
+                                'q_uni': row.get('q_uni'),
+                                'q_duration': row.get('q_duration'),
+                                'q_yop': row.get('q_yop'),
+                                'q_comment': row.get('q_comment'),
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{email}: {str(e)}")
+
+            # Handling work experience Excel file
+            if 'work_exp' in request.FILES:
+                work_exp_file = request.FILES['work_exp']
+                df_work_exp = pd.read_excel(work_exp_file)
+
+                for _, row in df_work_exp.iterrows():
+                    email = row.get('emp_emailid').strip().lower()
+                    employee = get_or_create_employee(email)
+                    try:
+                        # Either update or create the work experience details
+                        work_exp, created = Work_exp.objects.update_or_create(
+                            emp_emailid=employee,  # Use the Employee instance
+                            defaults={
+                                'start_date': row.get('start_date'),
+                                'end_date': row.get('end_date'),
+                                'comp_name': row.get('comp_name'),
+                                'comp_location': row.get('comp_location'),
+                                'designation': row.get('designation'),
+                                'gross_salary': row.get('gross_salary'),
+                                'leave_reason': row.get('leave_reason'),
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{email}: {str(e)}")
+
+            if errors:
+                return JsonResponse({'status': 'Some records were not saved due to errors', 'errors': errors}, status=400)
 
             return JsonResponse({'status': 'Files uploaded and data saved successfully'}, status=201)
         
@@ -4884,7 +4997,6 @@ def bulkUploadEmployeeDetailsUpload(request):
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Invalid request method'}, status=400)
-
 
 # def bulkUploadEmployeeDetailsUpload(request):
 #     company_id = request.session.get('c_id')
