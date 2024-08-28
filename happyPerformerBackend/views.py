@@ -4604,6 +4604,14 @@ def KRAForm(request):
     if not company_id or not user_name:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
     
+    if request.method == 'GET':
+        try:
+            # Fetch all employee email IDs
+            employees = Employee.objects.values_list('emp_emailid', flat=True)
+            return JsonResponse({'employee_email_ids': list(employees)}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -4791,6 +4799,93 @@ def bulkEmployeeregistration(request):
 
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
+def bulkUploadEmployeeDetailsUpload(request):
+    company_id = request.session.get('c_id')
+    user_name = request.session.get('emp_name')
+    if not company_id or not user_name:
+        return JsonResponse({'error': 'Required session data not found'}, status=401)
+    
+    if request.method == 'POST':
+        try:
+            # Function to validate if email exists in Employee table
+            def is_employee_email_valid(email):
+                try:
+                    return Employee.objects.get(emp_emailid=email)
+                except Employee.DoesNotExist:
+                    return False
+
+            # A list to store invalid emails
+            invalid_emails = []
+
+            # Handling personal details Excel file
+            if 'personal_details' in request.FILES:
+                personal_details_file = request.FILES['personal_details']
+                df_personal = pd.read_excel(personal_details_file)
+
+                for _, row in df_personal.iterrows():
+                    email = row.get('emp_emailid').strip().lower()
+                    employee = is_employee_email_valid(email)
+                    if employee:
+                        try:
+                            Personal_details.objects.create(
+                                first_name=row.get('first_name'),
+                                last_name=row.get('last_name'),
+                                Contact=row.get('Contact'),
+                                emergency_name=row.get('emergency_name'),
+                                emergency_contact=row.get('emergency_contact'),
+                                gender=row.get('gender'),
+                                birth_date=row.get('birth_date'),
+                                address=row.get('address'),
+                                city=row.get('city'),
+                                district=row.get('district'),
+                                post_code=row.get('post_code'),
+                                state=row.get('state'),
+                                emp_emailid=employee.id  # Use the Employee primary key
+                            )
+                        except Exception as e:
+                            invalid_emails.append(f"{email}: {str(e)}")   
+                    else:
+                        invalid_emails.append(email)
+
+            # Repeat similar modifications for other sections (bank details, dependent details, etc.)
+            # Example:
+            if 'bank_details' in request.FILES:
+                bank_details_file = request.FILES['bank_details']
+                df_bank = pd.read_excel(bank_details_file)
+
+                for _, row in df_bank.iterrows():
+                    email = row.get('emp_emailid').strip().lower()
+                    employee = is_employee_email_valid(email)
+                    if employee:
+                        try:
+                            Bank_details.objects.create(
+                                holder_name=row.get('holder_name'),
+                                bank_name=row.get('bank_name'),
+                                acc_no=row.get('acc_no'),
+                                branch=row.get('branch'),
+                                acc_type=row.get('acc_type'),
+                                ifsc=row.get('ifsc'),
+                                Pan_no=row.get('Pan_no'),
+                                emp_emailid=employee.id  # Use the Employee primary key
+                            )
+                        except Exception as e:
+                            invalid_emails.append(f"{email}: {str(e)}")  
+                    else:
+                        invalid_emails.append(email)
+
+            # Continue similar changes for other parts of the code...
+
+            if invalid_emails:
+                return JsonResponse({'status': 'Some records were not saved due to invalid email IDs', 'invalid_emails': invalid_emails}, status=400)
+
+            return JsonResponse({'status': 'Files uploaded and data saved successfully'}, status=201)
+        
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
 # def bulkUploadEmployeeDetailsUpload(request):
 #     company_id = request.session.get('c_id')
 #     user_name = request.session.get('emp_name')
@@ -4807,315 +4902,132 @@ def bulkEmployeeregistration(request):
 #                 except Employee.DoesNotExist:
 #                     return False
 
-#             # A dictionary to store invalid emails
+#             # A list to store invalid emails
 #             invalid_emails = []
+
+#             # Function to handle Excel file upload and save data to the appropriate model
+#             def process_excel_file(file, model, fields_mapping):
+#                 wb = openpyxl.load_workbook(file)
+#                 sheet = wb.active
+
+#                 headers = {cell.value: idx for idx, cell in enumerate(sheet[1])}
+                
+#                 for row in sheet.iter_rows(min_row=2, values_only=True):
+#                     email = row[headers.get('emp_emailid')]
+#                     if is_employee_email_valid(email):
+#                         data = {field: row[headers.get(excel_col)] for excel_col, field in fields_mapping.items()}
+#                         data['emp_emailid'] = Employee.objects.get(emp_emailid=email)  # ForeignKey relation
+#                         model.objects.create(**data)
+#                     else:
+#                         invalid_emails.append(email)
+
+#             # Define the mappings from Excel columns to model fields
+#             personal_fields_mapping = {
+#                 'first_name': 'first_name',
+#                 'last_name': 'last_name',
+#                 'Contact': 'Contact',
+#                 'emergency_name': 'emergency_name',
+#                 'emergency_contact': 'emergency_contact',
+#                 'gender': 'gender',
+#                 'birth_date': 'birth_date',
+#                 'address': 'address',
+#                 'city': 'city',
+#                 'district': 'district',
+#                 'post_code': 'post_code',
+#                 'state': 'state',
+#                 'emp_emailid':'emp_emailid'
+#             }
+
+#             bank_fields_mapping = {
+#                 'holder_name': 'holder_name',
+#                 'bank_name': 'bank_name',
+#                 'acc_no': 'acc_no',
+#                 'branch': 'branch',
+#                 'acc_type': 'acc_type',
+#                 'ifsc': 'ifsc',
+#                 'Pan_no': 'Pan_no'
+#             }
+
+#             dependent_fields_mapping = {
+#                 'D_name': 'D_name',
+#                 'D_gender': 'D_gender',
+#                 'D_dob': 'D_dob',
+#                 'D_relation': 'D_relation',
+#                 'D_desc': 'D_desc'
+#             }
+
+#             family_fields_mapping = {
+#                 'F_name': 'F_name',
+#                 'F_gender': 'F_gender',
+#                 'F_dob': 'F_dob',
+#                 'F_contact': 'F_contact',
+#                 'F_mail': 'F_mail',
+#                 'F_relation': 'F_relation',
+#                 'F_comment': 'F_comment'
+#             }
+
+#             job_fields_mapping = {
+#                 'job_title': 'job_title',
+#                 'department': 'department',
+#                 'working_type': 'working_type',
+#                 'start_date': 'start_date'
+#             }
+
+#             qualification_fields_mapping = {
+#                 'q_type': 'q_type',
+#                 'q_degree': 'q_degree',
+#                 'q_clg': 'q_clg',
+#                 'q_uni': 'q_uni',
+#                 'q_duration': 'q_duration',
+#                 'q_yop': 'q_yop',
+#                 'q_comment': 'q_comment'
+#             }
+
+#             work_exp_fields_mapping = {
+#                 'start_date': 'start_date',
+#                 'end_date': 'end_date',
+#                 'comp_name': 'comp_name',
+#                 'comp_location': 'comp_location',
+#                 'designation': 'designation',
+#                 'gross_salary': 'gross_salary',
+#                 'leave_reason': 'leave_reason'
+#             }
 
 #             # Handling personal details Excel file
 #             if 'personal_details' in request.FILES:
-#                 personal_details_file = request.FILES['personal_details']
-#                 df_personal = pd.read_excel(personal_details_file)
-
-#                 for _, row in df_personal.iterrows():
-#                     email = row.get('emp_emailid').strip().lower()
-#                     employee = is_employee_email_valid(email)
-#                     # if is_employee_email_valid(email):
-#                     if employee:  # This will be the Employee object, not a boolean
-#                         try:
-#                             Personal_details.objects.create(
-#                                 first_name=row.get('first_name'),
-#                                 last_name=row.get('last_name'),
-#                                 Contact=row.get('Contact'),
-#                                 emergency_name=row.get('emergency_name'),
-#                                 emergency_contact=row.get('emergency_contact'),
-#                                 gender=row.get('gender'),
-#                                 birth_date=row.get('birth_date'),
-#                                 address=row.get('address'),
-#                                 city=row.get('city'),
-#                                 district=row.get('district'),
-#                                 post_code=row.get('post_code'),
-#                                 state=row.get('state'),
-#                                 mail_id=employee  # Use the Employee instance
-#                             )
-#                         except Exception as e:
-#                             invalid_emails.append(f"{email}: {str(e)}")   
-#                     else:
-#                         invalid_emails.append(email)
+#                 process_excel_file(request.FILES['personal_details'], Personal_details, personal_fields_mapping)
 
 #             # Handling bank details Excel file
 #             if 'bank_details' in request.FILES:
-#                 bank_details_file = request.FILES['bank_details']
-#                 df_bank = pd.read_excel(bank_details_file)
-
-#                 for _, row in df_bank.iterrows():
-#                     email = row.get('emp_emailid')
-#                     if is_employee_email_valid(email):
-#                         Bank_details.objects.create(
-#                             holder_name=row.get('holder_name'),
-#                             bank_name=row.get('bank_name'),
-#                             acc_no=row.get('acc_no'),
-#                             branch=row.get('branch'),
-#                             acc_type=row.get('acc_type'),
-#                             ifsc=row.get('ifsc'),
-#                             Pan_no=row.get('Pan_no'),
-#                             emp_emailid=Employee.objects.get(emp_emailid=email)  # Use the Employee instance
-#                         )
-#                     else:
-#                         invalid_emails.append(email)
+#                 process_excel_file(request.FILES['bank_details'], Bank_details, bank_fields_mapping)
 
 #             # Handling dependent details Excel file
 #             if 'dependent_details' in request.FILES:
-#                 dependent_file = request.FILES['dependent_details']
-#                 df_dependent = pd.read_excel(dependent_file)
-
-#                 for _, row in df_dependent.iterrows():
-#                     email = row.get('emp_emailid')
-#                     if is_employee_email_valid(email):
-#                         Dependent.objects.create(
-#                             D_name=row.get('D_name'),
-#                             D_gender=row.get('D_gender'),
-#                             D_dob=row.get('D_dob'),
-#                             D_relation=row.get('D_relation'),
-#                             D_desc=row.get('D_desc'),
-#                             emp_emailid=Employee.objects.get(emp_emailid=email)  # Use the Employee instance
-#                         )
-#                     else:
-#                         invalid_emails.append(email)
+#                 process_excel_file(request.FILES['dependent_details'], Dependent, dependent_fields_mapping)
 
 #             # Handling family details Excel file
 #             if 'family_details' in request.FILES:
-#                 family_file = request.FILES['family_details']
-#                 df_family = pd.read_excel(family_file)
-
-#                 for _, row in df_family.iterrows():
-#                     email = row.get('emp_emailid')
-#                     if is_employee_email_valid(email):
-#                         Family_details.objects.create(
-#                             F_name=row.get('F_name'),
-#                             F_gender=row.get('F_gender'),
-#                             F_dob=row.get('F_dob'),
-#                             F_contact=row.get('F_contact'),
-#                             F_mail=row.get('F_mail'),
-#                             F_relation=row.get('F_relation'),
-#                             F_comment=row.get('F_comment'),
-#                             emp_emailid=Employee.objects.get(emp_emailid=email)  # Use the Employee instance
-#                         )
-#                     else:
-#                         invalid_emails.append(email)
+#                 process_excel_file(request.FILES['family_details'], Family_details, family_fields_mapping)
 
 #             # Handling job info Excel file
 #             if 'job_info' in request.FILES:
-#                 job_info_file = request.FILES['job_info']
-#                 df_job = pd.read_excel(job_info_file)
-
-#                 for _, row in df_job.iterrows():
-#                     email = row.get('emp_emailid')
-#                     if is_employee_email_valid(email):
-#                         Job_info.objects.create(
-#                             job_title=row.get('job_title'),
-#                             department=row.get('department'),
-#                             working_type=row.get('working_type'),
-#                             start_date=row.get('start_date'),
-#                             emp_emailid=Employee.objects.get(emp_emailid=email)  # Use the Employee instance
-#                         )
-#                     else:
-#                         invalid_emails.append(email)
+#                 process_excel_file(request.FILES['job_info'], Job_info, job_fields_mapping)
 
 #             # Handling qualification details Excel file
 #             if 'qualification_details' in request.FILES:
-#                 qualification_file = request.FILES['qualification_details']
-#                 df_qualification = pd.read_excel(qualification_file)
-
-#                 for _, row in df_qualification.iterrows():
-#                     email = row.get('emp_emailid')
-#                     if is_employee_email_valid(email):
-#                         Qualification.objects.create(
-#                             q_type=row.get('q_type'),
-#                             q_degree=row.get('q_degree'),
-#                             q_clg=row.get('q_clg'),
-#                             q_uni=row.get('q_uni'),
-#                             q_duration=row.get('q_duration'),
-#                             q_yop=row.get('q_yop'),
-#                             q_comment=row.get('q_comment'),
-#                             emp_emailid=Employee.objects.get(emp_emailid=email)  # Use the Employee instance
-#                         )
-#                     else:
-#                         invalid_emails.append(email)
+#                 process_excel_file(request.FILES['qualification_details'], Qualification, qualification_fields_mapping)
 
 #             # Handling work experience Excel file
 #             if 'work_exp' in request.FILES:
-#                 work_exp_file = request.FILES['work_exp']
-#                 df_work_exp = pd.read_excel(work_exp_file)
-
-#                 for _, row in df_work_exp.iterrows():
-#                     email = row.get('emp_emailid')
-#                     if is_employee_email_valid(email):
-#                         Work_exp.objects.create(
-#                             start_date=row.get('start_date'),
-#                             end_date=row.get('end_date'),
-#                             comp_name=row.get('comp_name'),
-#                             comp_location=row.get('comp_location'),
-#                             designation=row.get('designation'),
-#                             gross_salary=row.get('gross_salary'),
-#                             leave_reason=row.get('leave_reason'),
-#                             emp_emailid=Employee.objects.get(emp_emailid=email)  # Use the Employee instance
-#                         )
-#                     else:
-#                         invalid_emails.append(email)
+#                 process_excel_file(request.FILES['work_exp'], Work_exp, work_exp_fields_mapping)
 
 #             if invalid_emails:
 #                 return JsonResponse({'status': 'Some records were not saved due to invalid email IDs', 'invalid_emails': invalid_emails}, status=400)
 
 #             return JsonResponse({'status': 'Files uploaded and data saved successfully'}, status=201)
-        
+
 #         except Exception as e:
 #             return JsonResponse({'error': str(e)}, status=500)
     
 #     return JsonResponse({'error': 'Invalid request method'}, status=400)
-
-
-
-def bulkUploadEmployeeDetailsUpload(request):
-    company_id = request.session.get('c_id')
-    user_name = request.session.get('emp_name')
-    if not company_id or not user_name:
-        return JsonResponse({'error': 'Required session data not found'}, status=401)
-    
-    if request.method == 'POST':
-        try:
-            # Function to validate if email exists in Employee table
-            def is_employee_email_valid(email):
-                try:
-                    Employee.objects.get(emp_emailid=email)
-                    return True
-                except Employee.DoesNotExist:
-                    return False
-
-            # A list to store invalid emails
-            invalid_emails = []
-
-            # Function to handle Excel file upload and save data to the appropriate model
-            def process_excel_file(file, model, fields_mapping):
-                wb = openpyxl.load_workbook(file)
-                sheet = wb.active
-
-                headers = {cell.value: idx for idx, cell in enumerate(sheet[1])}
-                
-                for row in sheet.iter_rows(min_row=2, values_only=True):
-                    email = row[headers.get('emp_emailid')]
-                    if is_employee_email_valid(email):
-                        data = {field: row[headers.get(excel_col)] for excel_col, field in fields_mapping.items()}
-                        data['emp_emailid'] = Employee.objects.get(emp_emailid=email)  # ForeignKey relation
-                        model.objects.create(**data)
-                    else:
-                        invalid_emails.append(email)
-
-            # Define the mappings from Excel columns to model fields
-            personal_fields_mapping = {
-                'first_name': 'first_name',
-                'last_name': 'last_name',
-                'Contact': 'Contact',
-                'emergency_name': 'emergency_name',
-                'emergency_contact': 'emergency_contact',
-                'gender': 'gender',
-                'birth_date': 'birth_date',
-                'address': 'address',
-                'city': 'city',
-                'district': 'district',
-                'post_code': 'post_code',
-                'state': 'state',
-                'emp_emailid':'emp_emailid'
-            }
-
-            bank_fields_mapping = {
-                'holder_name': 'holder_name',
-                'bank_name': 'bank_name',
-                'acc_no': 'acc_no',
-                'branch': 'branch',
-                'acc_type': 'acc_type',
-                'ifsc': 'ifsc',
-                'Pan_no': 'Pan_no'
-            }
-
-            dependent_fields_mapping = {
-                'D_name': 'D_name',
-                'D_gender': 'D_gender',
-                'D_dob': 'D_dob',
-                'D_relation': 'D_relation',
-                'D_desc': 'D_desc'
-            }
-
-            family_fields_mapping = {
-                'F_name': 'F_name',
-                'F_gender': 'F_gender',
-                'F_dob': 'F_dob',
-                'F_contact': 'F_contact',
-                'F_mail': 'F_mail',
-                'F_relation': 'F_relation',
-                'F_comment': 'F_comment'
-            }
-
-            job_fields_mapping = {
-                'job_title': 'job_title',
-                'department': 'department',
-                'working_type': 'working_type',
-                'start_date': 'start_date'
-            }
-
-            qualification_fields_mapping = {
-                'q_type': 'q_type',
-                'q_degree': 'q_degree',
-                'q_clg': 'q_clg',
-                'q_uni': 'q_uni',
-                'q_duration': 'q_duration',
-                'q_yop': 'q_yop',
-                'q_comment': 'q_comment'
-            }
-
-            work_exp_fields_mapping = {
-                'start_date': 'start_date',
-                'end_date': 'end_date',
-                'comp_name': 'comp_name',
-                'comp_location': 'comp_location',
-                'designation': 'designation',
-                'gross_salary': 'gross_salary',
-                'leave_reason': 'leave_reason'
-            }
-
-            # Handling personal details Excel file
-            if 'personal_details' in request.FILES:
-                process_excel_file(request.FILES['personal_details'], Personal_details, personal_fields_mapping)
-
-            # Handling bank details Excel file
-            if 'bank_details' in request.FILES:
-                process_excel_file(request.FILES['bank_details'], Bank_details, bank_fields_mapping)
-
-            # Handling dependent details Excel file
-            if 'dependent_details' in request.FILES:
-                process_excel_file(request.FILES['dependent_details'], Dependent, dependent_fields_mapping)
-
-            # Handling family details Excel file
-            if 'family_details' in request.FILES:
-                process_excel_file(request.FILES['family_details'], Family_details, family_fields_mapping)
-
-            # Handling job info Excel file
-            if 'job_info' in request.FILES:
-                process_excel_file(request.FILES['job_info'], Job_info, job_fields_mapping)
-
-            # Handling qualification details Excel file
-            if 'qualification_details' in request.FILES:
-                process_excel_file(request.FILES['qualification_details'], Qualification, qualification_fields_mapping)
-
-            # Handling work experience Excel file
-            if 'work_exp' in request.FILES:
-                process_excel_file(request.FILES['work_exp'], Work_exp, work_exp_fields_mapping)
-
-            if invalid_emails:
-                return JsonResponse({'status': 'Some records were not saved due to invalid email IDs', 'invalid_emails': invalid_emails}, status=400)
-
-            return JsonResponse({'status': 'Files uploaded and data saved successfully'}, status=201)
-
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
