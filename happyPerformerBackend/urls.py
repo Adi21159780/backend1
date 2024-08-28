@@ -18,7 +18,7 @@ urlpatterns = [
     path('Forms/', views.Forms, name='Forms'),
     path('FormReviewRespose/', views.FormReviewRespose, name='FormReviewRespose'),
     path('FormsSubmitResponse/', views.FormsSubmitResponse, name='FormsSubmitResponse'),
-    path('Kra/', views.Kra, name='Kra'),
+    path('Kra/', views.KraList, name='KraList'),
     path('Letters/', views.Letters, name='Letters'),
     path('FAQsView/', views.FAQsView, name='FAQsView'),
     path('ApplyLeave/', views.ApplyLeave, name='ApplyLeave'),
@@ -110,7 +110,8 @@ urlpatterns = [
     path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
     path('kraform/', views.KRAForm, name='KRAForm'),
     path('sopform/', views.SOPForm, name='SOPForm'),
-    path('bulkEmployeeUpload/', views.bulkEmployeeUpload, name='bulkEmployeeUpload'),
+    path('bulkUploadEmployeeDetailsUpload/', views.bulkUploadEmployeeDetailsUpload, name='bulkUploadEmployeeDetailsUpload'),
+    path('bulkEmployeeregistration/', views.bulkEmployeeregistration, name='bulkEmployeeregistration'),
 ]
 
 

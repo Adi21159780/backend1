@@ -456,13 +456,15 @@ class Kra(models.Model):
         (3, '3'),
         (4, '4'),
     ]
-    ratings = models.IntegerField(choices=RATINGS_CHOICES)
+    ratings = models.IntegerField(choices=RATINGS_CHOICES, null=True, blank=True, default=1)
     selfratings = models.IntegerField(default=0)
     remarks = models.CharField(max_length=500, null=True, default=None)
     status = models.IntegerField(default=0)
     kra_id = models.IntegerField()
     email_id = models.CharField(max_length=100, null=True, default=None)
     kra_id = models.ForeignKey('Kra_table', on_delete=models.CASCADE, db_column='kra_id')
+    Measurement = models.IntegerField(null=True, default=0)
+    submission_date = models.DateTimeField(default=None)
 
 
 class Leavecounttemp(models.Model):
@@ -872,6 +874,5 @@ class Kra_desc(models.Model):
     Weightage = models.IntegerField()
     KPI = models.CharField(max_length=500)
     Measurement = models.IntegerField()
-    email_id = models.CharField(max_length=100, null=True, default=None)
     submission_date = models.DateTimeField(default=None)
-
+    email_id = models.CharField(max_length=100, null=True, default=None)
