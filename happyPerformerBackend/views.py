@@ -4833,6 +4833,11 @@ def SOPForm(request):
     
     elif request.method == 'POST':
         try:
+            try:
+                latest_sop = Sop.objects.latest('sop_id')
+                sop_id = latest_sop.sop_id + 1
+            except ObjectDoesNotExist:
+                sop_id = 1  # Start at 1 if no records exist
             # Automatically generate sop_id
             latest_sop = Sop.objects.latest('sop_id')
             sop_id = latest_sop.sop_id + 1 if latest_sop else 1  # Increment sop_id or start at 1 if no records exist
