@@ -23,6 +23,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from django.core.exceptions import ObjectDoesNotExist
+import razorpay
 
 
 
@@ -4443,6 +4444,8 @@ def task_search(request):
         ).values()
         tasks_list = list(tasks)
         return JsonResponse(tasks_list, safe=False)
+    
+    
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_performance_data(request, employee_email, year):
@@ -4544,5 +4547,167 @@ def jd_form(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    
+    
+# Initialize Razorpay client
+razorpay_client = razorpay.Client(
+    auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+)
+    
+    
+#adding razorpay integration
+@csrf_exempt
+def create_razorpay_order(request):
+    """
+    Creates a Razorpay order for salary disbursement.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            salary_id = data.get('salary_id')
+
+            # Make sure the Salary object exists and belongs to the company
+            salary = get_object_or_404(Salary, sal_id=salary_id)
+            company_id = request.session.get('c_id')
+            if salary.emp_emailid.emp_emailid.d_id.c_id_id != company_id:
+                return JsonResponse({'error': 'Unauthorized access'}, status=403)
+
+            amount = int(salary.Net_Salary * 100)  # Convert to paise
+
+            order_data = {
+                'amount': amount,
+                'currency': 'INR',
+                'receipt': f'salary-{salary_id}',
+                'payment_capture': 1,  # Auto-capture payment
+                'notes': {'salary_id': salary_id}
+            }
+
+            order = razorpay_client.order.create(order_data)
+
+            # Store order ID for reference
+            with transaction.atomic():
+                RazorpayOrder.objects.create(
+                    order_id=order['id'],
+                    salary=salary,
+                    amount=amount
+                )
+
+            return JsonResponse({'order_id': order['id']}, status=201)
+        except Salary.DoesNotExist:
+            return JsonResponse({'error': 'Salary not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def verify_razorpay_payment(request):
+    """
+    Verifies the Razorpay payment signature and updates the salary status.
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            razorpay_payment_id = data.get('razorpay_payment_id')
+            razorpay_order_id = data.get('razorpay_order_id')
+            razorpay_signature = data.get('razorpay_signature')
+
+            # Verify payment signature
+            try:
+                razorpay_client.utility.verify_payment_signature({
+                    'razorpay_order_id': razorpay_order_id,
+                    'razorpay_payment_id': razorpay_payment_id,
+                    'razorpay_signature': razorpay_signature
+                })
+            except razorpay.errors.SignatureVerificationError:
+                return JsonResponse({'error': 'Invalid payment signature'}, status=400)
+
+            # Retrieve order details from database
+            with transaction.atomic():
+                order = RazorpayOrder.objects.get(order_id=razorpay_order_id)
+
+                # Check if the salary is already paid (to prevent double payments)
+                if order.salary.paid:
+                    return JsonResponse({'error': 'Salary already paid'}, status=400)
+
+                # Update salary status to 'paid' and save payment details
+                order.salary.paid = True
+                order.payment_id = razorpay_payment_id  # Save payment ID (if needed)
+                order.salary.save()
+                order.save()
+
+            return JsonResponse({'message': 'Payment successful'}, status=200)
+
+        except RazorpayOrder.DoesNotExist:
+            return JsonResponse({'error': 'Order not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    
+    
+    
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def AttritionReport(request):
+    """
+    Generates an attrition report for the company.
+
+    GET: Retrieves the attrition report data.
+    """
+    company_id = request.session.get('c_id')
+    if not company_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+    if request.method == 'GET':
+        try:
+            # Calculate attrition rate for the past 12 months
+            today = datetime.now()
+            start_date = today - timedelta(days=365)  # Past 12 months
+
+            # Get all employees who joined within the past year
+            joined_employees = Job_info.objects.filter(
+                emp_emailid__d_id__c_id=company_id, 
+                start_date__gte=start_date
+            ).annotate(
+                join_month=TruncMonth('start_date')
+            )
+
+            # Get employees who resigned within the past year
+            resigned_employees = Resignation.objects.filter(
+                emp_emailid__d_id__c_id=company_id,
+                submit_date__gte=start_date
+            ).annotate(
+                resignation_month=TruncMonth('submit_date')
+            )
+
+            # Aggregate data by month
+            attrition_data = joined_employees.values('join_month').annotate(
+                joined_count=Count('emp_emailid'),
+                resigned_count=Count('emp_emailid__R_Id', filter=Q(emp_emailid__R_Id__in=resigned_employees)),
+            ).order_by('join_month')
+
+            # Calculate attrition rate and format the data for response
+            report_data = []
+            for data in attrition_data:
+                month_name = calendar.month_name[data['join_month'].month]
+                attrition_rate = (data['resigned_count'] / data['joined_count']) * 100 if data['joined_count'] > 0 else 0
+                report_data.append({
+                    'month': month_name,
+                    'joined_count': data['joined_count'],
+                    'resigned_count': data['resigned_count'],
+                    'attrition_rate': round(attrition_rate, 2)
+                })
+
+            return JsonResponse({'attrition_report': report_data}, status=200)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)

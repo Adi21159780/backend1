@@ -862,3 +862,12 @@ class Work_exp(models.Model):
     leave_reason = models.TextField(null=True, blank=True)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid')
 
+
+
+#added a model for razorpay integration
+class RazorpayOrder(models.Model):
+    order_id = models.CharField(max_length=255, unique=True)
+    salary = models.ForeignKey(Salary, on_delete=models.CASCADE)
+    amount = models.IntegerField()  # Amount in paise
+    created_at = models.DateTimeField(auto_now_add=True)
+    
