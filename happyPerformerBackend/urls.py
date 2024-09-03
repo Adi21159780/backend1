@@ -112,6 +112,7 @@ urlpatterns = [
     path('sopform/', views.SOPForm, name='SOPForm'),
     path('bulkUploadEmployeeDetailsUpload/', views.bulkUploadEmployeeDetailsUpload, name='bulkUploadEmployeeDetailsUpload'),
     path('bulkEmployeeregistration/', views.bulkEmployeeregistration, name='bulkEmployeeregistration'),
+    path('SopList/', views.SopList, name='SopList'),
 ]
 
 

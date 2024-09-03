@@ -5075,148 +5075,216 @@ def bulkUploadEmployeeDetailsUpload(request):
 
 
 
-# def bulkUploadEmployeeDetailsUpload(request):
-#     company_id = request.session.get('c_id')
-#     user_name = request.session.get('emp_name')
-#     if not company_id or not user_name:
-#         return JsonResponse({'error': 'Required session data not found'}, status=401)
-    
-#     if request.method == 'POST':
+
+# @csrf_exempt
+# def SopList(request, sop_id=None):
+#     # Get the logged-in user's email and role
+#     user_email = request.session.get('emp_emailid')
+#     if not user_email:
+#         return JsonResponse({'error': 'User not logged in'}, status=401)
+
+#     # Get the employee object to determine their role
+#     try:
+#         employee = Employee.objects.get(emp_emailid=user_email)
+#     except Employee.DoesNotExist:
+#         return JsonResponse({'error': 'Employee not found'}, status=404)
+
+#     user_role = employee.emp_role.lower()
+
+#     if request.method == 'GET':
+#         # Existing code for GET method
+#         if sop_id:
+#             # Fetch the specific SOP using the sop_id
+#             try:
+#                 sop = Sop.objects.get(sop_id=sop_id)
+#             except Sop.DoesNotExist:
+#                 return JsonResponse({'error': 'SOP not found'}, status=404)
+
+#             # Prepare the data for the specific SOP
+#             sop_data = {
+#                 'sop_id': sop.sop_id,
+#                 'type': sop.type,
+#                 's_name': sop.s_name,
+#                 'sdate': sop.sdate,
+#                 'sop_file': sop.sop_file.url if sop.sop_file else None,
+#                 'ratings': sop.ratings,
+#                 'selfratings': sop.selfratings,
+#                 'remarks': sop.remarks,
+#                 'd_id': sop.d_id_id,
+#             }
+#             return JsonResponse(sop_data, status=200)
+
+#         else:
+#             # Fetch all SOPs from the database
+#             sops = Sop.objects.all()
+#             sop_data_list = []
+#             for sop in sops:
+#                 sop_data = {
+#                     'sop_id': sop.sop_id,
+#                     'type': sop.type,
+#                     's_name': sop.s_name,
+#                     'sdate': sop.sdate,
+#                     'sop_file': sop.sop_file.url if sop.sop_file else None,
+#                     'ratings': sop.ratings,
+#                     'selfratings': sop.selfratings,
+#                     'remarks': sop.remarks,
+#                     'd_id': sop.d_id_id,
+#                 }
+#                 sop_data_list.append(sop_data)
+#             return JsonResponse(sop_data_list, safe=False, status=200)
+
+#     elif request.method == 'POST':
 #         try:
-#             # Function to validate if email exists in Employee table
-#             def is_employee_email_valid(email):
-#                 try:
-#                     Employee.objects.get(emp_emailid=email)
-#                     return True
-#                 except Employee.DoesNotExist:
-#                     return False
+#             data = json.loads(request.body)
+            
+#             # Accept sop_id from the request body if not provided in the URL
+#             sop_id = sop_id or data.get('sop_id')
+            
+#             if not sop_id:
+#                 return JsonResponse({'error': 'SOP ID is required for updating'}, status=400)
 
-#             # A list to store invalid emails
-#             invalid_emails = []
+#             # Fetch the specific SOP using the sop_id
+#             try:
+#                 sop = Sop.objects.get(sop_id=sop_id)
+#             except Sop.DoesNotExist:
+#                 return JsonResponse({'error': 'SOP not found'}, status=404)
 
-#             # Function to handle Excel file upload and save data to the appropriate model
-#             def process_excel_file(file, model, fields_mapping):
-#                 wb = openpyxl.load_workbook(file)
-#                 sheet = wb.active
+#             # Allow managers to update ratings and remarks
+#             if user_role == 'manager':
+#                 sop.ratings = data.get('ratings', sop.ratings)
+#                 sop.remarks = data.get('remarks', sop.remarks)
 
-#                 headers = {cell.value: idx for idx, cell in enumerate(sheet[1])}
-                
-#                 for row in sheet.iter_rows(min_row=2, values_only=True):
-#                     email = row[headers.get('emp_emailid')]
-#                     if is_employee_email_valid(email):
-#                         data = {field: row[headers.get(excel_col)] for excel_col, field in fields_mapping.items()}
-#                         data['emp_emailid'] = Employee.objects.get(emp_emailid=email)  # ForeignKey relation
-#                         model.objects.create(**data)
-#                     else:
-#                         invalid_emails.append(email)
+#             # Allow all employees (including managers) to update selfratings
+#             sop.selfratings = data.get('selfratings', sop.selfratings)
 
-#             # Define the mappings from Excel columns to model fields
-#             personal_fields_mapping = {
-#                 'first_name': 'first_name',
-#                 'last_name': 'last_name',
-#                 'Contact': 'Contact',
-#                 'emergency_name': 'emergency_name',
-#                 'emergency_contact': 'emergency_contact',
-#                 'gender': 'gender',
-#                 'birth_date': 'birth_date',
-#                 'address': 'address',
-#                 'city': 'city',
-#                 'district': 'district',
-#                 'post_code': 'post_code',
-#                 'state': 'state',
-#                 'emp_emailid':'emp_emailid'
-#             }
+#             # Save the updated SOP
+#             sop.save()
 
-#             bank_fields_mapping = {
-#                 'holder_name': 'holder_name',
-#                 'bank_name': 'bank_name',
-#                 'acc_no': 'acc_no',
-#                 'branch': 'branch',
-#                 'acc_type': 'acc_type',
-#                 'ifsc': 'ifsc',
-#                 'Pan_no': 'Pan_no'
-#             }
+#             return JsonResponse({'status': 'SOP details updated successfully.'}, status=200)
 
-#             dependent_fields_mapping = {
-#                 'D_name': 'D_name',
-#                 'D_gender': 'D_gender',
-#                 'D_dob': 'D_dob',
-#                 'D_relation': 'D_relation',
-#                 'D_desc': 'D_desc'
-#             }
-
-#             family_fields_mapping = {
-#                 'F_name': 'F_name',
-#                 'F_gender': 'F_gender',
-#                 'F_dob': 'F_dob',
-#                 'F_contact': 'F_contact',
-#                 'F_mail': 'F_mail',
-#                 'F_relation': 'F_relation',
-#                 'F_comment': 'F_comment'
-#             }
-
-#             job_fields_mapping = {
-#                 'job_title': 'job_title',
-#                 'department': 'department',
-#                 'working_type': 'working_type',
-#                 'start_date': 'start_date'
-#             }
-
-#             qualification_fields_mapping = {
-#                 'q_type': 'q_type',
-#                 'q_degree': 'q_degree',
-#                 'q_clg': 'q_clg',
-#                 'q_uni': 'q_uni',
-#                 'q_duration': 'q_duration',
-#                 'q_yop': 'q_yop',
-#                 'q_comment': 'q_comment'
-#             }
-
-#             work_exp_fields_mapping = {
-#                 'start_date': 'start_date',
-#                 'end_date': 'end_date',
-#                 'comp_name': 'comp_name',
-#                 'comp_location': 'comp_location',
-#                 'designation': 'designation',
-#                 'gross_salary': 'gross_salary',
-#                 'leave_reason': 'leave_reason'
-#             }
-
-#             # Handling personal details Excel file
-#             if 'personal_details' in request.FILES:
-#                 process_excel_file(request.FILES['personal_details'], Personal_details, personal_fields_mapping)
-
-#             # Handling bank details Excel file
-#             if 'bank_details' in request.FILES:
-#                 process_excel_file(request.FILES['bank_details'], Bank_details, bank_fields_mapping)
-
-#             # Handling dependent details Excel file
-#             if 'dependent_details' in request.FILES:
-#                 process_excel_file(request.FILES['dependent_details'], Dependent, dependent_fields_mapping)
-
-#             # Handling family details Excel file
-#             if 'family_details' in request.FILES:
-#                 process_excel_file(request.FILES['family_details'], Family_details, family_fields_mapping)
-
-#             # Handling job info Excel file
-#             if 'job_info' in request.FILES:
-#                 process_excel_file(request.FILES['job_info'], Job_info, job_fields_mapping)
-
-#             # Handling qualification details Excel file
-#             if 'qualification_details' in request.FILES:
-#                 process_excel_file(request.FILES['qualification_details'], Qualification, qualification_fields_mapping)
-
-#             # Handling work experience Excel file
-#             if 'work_exp' in request.FILES:
-#                 process_excel_file(request.FILES['work_exp'], Work_exp, work_exp_fields_mapping)
-
-#             if invalid_emails:
-#                 return JsonResponse({'status': 'Some records were not saved due to invalid email IDs', 'invalid_emails': invalid_emails}, status=400)
-
-#             return JsonResponse({'status': 'Files uploaded and data saved successfully'}, status=201)
-
+#         except json.JSONDecodeError:
+#             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
 #         except Exception as e:
 #             return JsonResponse({'error': str(e)}, status=500)
-    
+
 #     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+
+
+@csrf_exempt
+def SopList(request, sop_id=None):
+    # Get the logged-in user's email and role
+    user_email = request.session.get('emp_emailid')
+    if not user_email:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    # Get the employee object to determine their role
+    try:
+        employee = Employee.objects.get(emp_emailid=user_email)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'Employee not found'}, status=404)
+
+    user_role = employee.emp_role.lower()
+
+    if request.method == 'GET':
+        if sop_id:
+            # Fetch the specific SOP using the sop_id
+            try:
+                sop = Sop.objects.get(sop_id=sop_id)
+            except Sop.DoesNotExist:
+                return JsonResponse({'error': 'SOP not found'}, status=404)
+
+            # Prepare the data for the specific SOP
+            sop_data = {
+                'sop_id': sop.sop_id,
+                'type': sop.type,
+                's_name': sop.s_name,
+                'sdate': sop.sdate,
+                'sop_file': sop.sop_file.url if sop.sop_file else None,
+                'ratings': sop.ratings,
+                'selfratings': sop.selfratings,
+                'remarks': sop.remarks,
+                'd_id': sop.d_id_id,
+            }
+            return JsonResponse(sop_data, status=200)
+
+        else:
+            # Fetch all SOPs from the database
+            sops = Sop.objects.all()
+            sop_data_list = []
+            for sop in sops:
+                sop_data = {
+                    'sop_id': sop.sop_id,
+                    'type': sop.type,
+                    's_name': sop.s_name,
+                    'sdate': sop.sdate,
+                    'sop_file': sop.sop_file.url if sop.sop_file else None,
+                    'ratings': sop.ratings,
+                    'selfratings': sop.selfratings,
+                    'remarks': sop.remarks,
+                    'd_id': sop.d_id_id,
+                }
+                sop_data_list.append(sop_data)
+            return JsonResponse(sop_data_list, safe=False, status=200)
+
+    elif request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # Accept sop_id from the request body if not provided in the URL
+            sop_id = sop_id or data.get('sop_id')
+            
+            if not sop_id:
+                return JsonResponse({'error': 'SOP ID is required for updating'}, status=400)
+
+            # Fetch the specific SOP using the sop_id
+            try:
+                sop = Sop.objects.get(sop_id=sop_id)
+            except Sop.DoesNotExist:
+                return JsonResponse({'error': 'SOP not found'}, status=404)
+
+            # Check if the user is a manager
+            if user_role == 'manager' or user_role == 'super manager':
+                sop.ratings = data.get('ratings', sop.ratings)
+                sop.remarks = data.get('remarks', sop.remarks)
+            else:
+                # Check if the user is attempting to update ratings or remarks without permission
+                if 'ratings' in data or 'remarks' in data:
+                    return JsonResponse({'error': 'You do not have permission to update ratings or remarks.'}, status=403)
+
+            # Allow all employees (including managers) to update selfratings
+            sop.selfratings = data.get('selfratings', sop.selfratings)
+
+            # Save the updated SOP
+            sop.save()
+
+            return JsonResponse({'status': 'SOP details updated successfully.'}, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

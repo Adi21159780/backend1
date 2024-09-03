@@ -769,6 +769,15 @@ class Sop(models.Model):
     s_name = models.CharField(max_length=30)
     sdate = models.DateField(null=True, blank=True)
     sop_file = models.FileField(upload_to='sop/', default=None, null=True)
+    RATINGS_CHOICES = [
+        (1, '1'),
+        (2, '2'),
+        (3, '3'),
+        (4, '4'),
+    ]
+    ratings = models.IntegerField(choices=RATINGS_CHOICES, null=True, blank=True, default=1)
+    selfratings = models.IntegerField(default=0)
+    remarks = models.CharField(max_length=500, null=True, default=None)
     d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id')
 
 
