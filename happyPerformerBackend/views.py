@@ -5170,8 +5170,6 @@ def bulkUploadEmployeeDetailsUpload(request):
 #     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
-
-
 @csrf_exempt
 def SopList(request, sop_id=None):
     # Get the logged-in user's email and role
