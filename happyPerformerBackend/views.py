@@ -5173,8 +5173,9 @@ def bulkUploadEmployeeDetailsUpload(request):
 @csrf_exempt
 def SopList(request, sop_id=None):
     # Get the logged-in user's email and role
+    company_id = request.session.get('c_id')
     user_email = request.session.get('emp_emailid')
-    if not user_email:
+    if not user_email or not company_id:
         return JsonResponse({'error': 'User not logged in'}, status=401)
 
     # Get the employee object to determine their role
@@ -5267,7 +5268,48 @@ def SopList(request, sop_id=None):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
+@csrf_exempt
+def JdList(request):
+    company_id = request.session.get('c_id')
+    user_email = request.session.get('emp_emailid')
 
+    if not user_email or not company_id:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+    if request.method == 'GET':
+        # Ensure the user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({'error': 'User not logged in'}, status=401)
+        
+        # Get the logged-in employee's name
+        emp_name = request.session.get('emp_name')
+        
+        try:
+            # Retrieve the employee instance using the name
+            employee = Employee.objects.get(emp_name=emp_name)
+        except Employee.DoesNotExist:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+
+        # Retrieve all job descriptions assigned to this employee
+        job_descs = Job_desc.objects.filter(email_id=employee.emp_emailid)
+
+        # Prepare the response data
+        job_desc_list = []
+        for jd in job_descs:
+            job_desc_list.append({
+                'jd_id':jd.job_desc_id,
+                'jd_name': jd.jd_name,
+                'responsibilities': jd.responsiblities,
+                'sdate': jd.sdate,
+                'ratings': jd.ratings,
+                'selfratings': jd.selfratings,
+                'remarks': jd.remarks,
+                'status': jd.status,
+            })
+
+        return JsonResponse({"job_descriptions": job_desc_list}, status=200)
+
+    return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
 
