@@ -5305,6 +5305,7 @@ def JdList(request):
                 'selfratings': jd.selfratings,
                 'remarks': jd.remarks,
                 'status': jd.status,
+                'email_id': jd.email_id,
             })
 
         return JsonResponse({"job_descriptions": job_desc_list}, status=200)
