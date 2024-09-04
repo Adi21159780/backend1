@@ -5309,17 +5309,8 @@ def JdList(request):
             })
 
         return JsonResponse({"job_descriptions": job_desc_list}, status=200)
-
-    return JsonResponse({"error": "Invalid request method"}, status=400)
-
-
-@csrf_exempt
-def JdDetails(request):
-    company_id = request.session.get('c_id')
-    user_email = request.session.get('emp_emailid')
-    if not user_email or not company_id:
-        return JsonResponse({'error': 'User not logged in'}, status=401)
     
+
     if request.method == 'POST':
         # Ensure the user is logged in
         if not request.session.get('user_id'):
@@ -5327,9 +5318,9 @@ def JdDetails(request):
 
         # Retrieve all job descriptions assigned to this employee
         data = json.loads(request.body)
-        jd_id = data.get('jd_id')
+        sdate = data.get('sdate')
         # Prepare the response data
-        job_details = Job_desc.objects.filter(job_desc_id=jd_id)
+        job_details = Job_desc.objects.filter(sdate=sdate)
         return JsonResponse({"job_details": {
             'jd_id': job_details[0].job_desc_id,
             'jd_name': job_details[0].jd_name,
@@ -5345,6 +5336,117 @@ def JdDetails(request):
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
+    return JsonResponse({"error": "Invalid request method"}, status=400)
+
+
+# @csrf_exempt
+# def JdDetails(request):
+#     company_id = request.session.get('c_id')
+#     user_email = request.session.get('emp_emailid')
+#     if not user_email or not company_id:
+#         return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+#     try:
+#         employee = Employee.objects.get(emp_emailid=user_email)
+#     except Employee.DoesNotExist:
+#         return JsonResponse({'error': 'Employee not found'}, status=404)
+
+#     user_role = employee.emp_role.lower()
+
+#     if request.method == 'POST':
+#             try:
+#                 data = json.loads(request.body)
+                
+#                 # Accept sop_id from the request body if not provided in the URL
+#                 jd_id = jd_id or data.get('jd_id')
+                
+#                 if not jd_id:
+#                     return JsonResponse({'error': 'SOP ID is required for updating'}, status=400)
+
+#                 # Fetch the specific SOP using the sop_id
+#                 try:
+#                     Job_desc = Job_desc.objects.get(jd_id=jd_id)
+#                 except Sop.DoesNotExist:
+#                     return JsonResponse({'error': 'SOP not found'}, status=404)
+
+#                 # Check if the user is a manager
+#                 if user_role == 'manager' or user_role == 'super manager':
+#                     Job_desc.ratings = data.get('ratings', Job_desc.ratings)
+#                     Job_desc.remarks = data.get('remarks', Job_desc.remarks)
+#                 else:
+#                     # Check if the user is attempting to update ratings or remarks without permission
+#                     if 'ratings' in data or 'remarks' in data:
+#                         return JsonResponse({'error': 'You do not have permission to update ratings or remarks.'}, status=403)
+
+#                 # Allow all employees (including managers) to update selfratings
+#                 Job_desc.selfratings = data.get('selfratings', Job_desc.selfratings)
+
+#                 # Save the updated SOP
+#                 Job_desc.save()
+
+#                 return JsonResponse({'status': 'SOP details updated successfully.'}, status=200)
+
+#             except json.JSONDecodeError:
+#                 return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+#             except Exception as e:
+#                 return JsonResponse({'error': str(e)}, status=500)
+
+#     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+@csrf_exempt
+def JdDetails(request):
+    company_id = request.session.get('c_id')
+    user_email = request.session.get('emp_emailid')
+    if not user_email or not company_id:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+    try:
+        employee = Employee.objects.get(emp_emailid=user_email)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'Employee not found'}, status=404)
+
+    user_role = employee.emp_role.lower()
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # Get the jd_id from the request body
+            jd_id = data.get('jd_id')
+            
+            if not jd_id:
+                return JsonResponse({'error': 'Job Description ID is required for updating'}, status=400)
+
+            # Fetch the specific Job_desc using the jd_id
+            try:
+                job_desc = Job_desc.objects.get(job_desc_id=jd_id)
+            except Job_desc.DoesNotExist:
+                return JsonResponse({'error': 'Job Description not found'}, status=404)
+
+            # Check if the user is a manager
+            if user_role in ['manager', 'super manager']:
+                job_desc.ratings = data.get('ratings', job_desc.ratings)
+                job_desc.remarks = data.get('remarks', job_desc.remarks)
+            else:
+                # Check if the user is attempting to update ratings or remarks without permission
+                if 'ratings' in data or 'remarks' in data:
+                    return JsonResponse({'error': 'You do not have permission to update ratings or remarks.'}, status=403)
+
+            # Allow all employees (including managers) to update selfratings
+            job_desc.selfratings = data.get('selfratings', job_desc.selfratings)
+
+            # Save the updated Job_desc
+            job_desc.save()
+
+            return JsonResponse({'status': 'Job Description details updated successfully.'}, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 
