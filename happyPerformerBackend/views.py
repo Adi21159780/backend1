@@ -5313,7 +5313,36 @@ def JdList(request):
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
+@csrf_exempt
+def JdDetails(request):
+    company_id = request.session.get('c_id')
+    user_email = request.session.get('emp_emailid')
+    if not user_email or not company_id:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+    if request.method == 'POST':
+        # Ensure the user is logged in
+        if not request.session.get('user_id'):
+            return JsonResponse({'error': 'User not logged in'}, status=401)
 
+        # Retrieve all job descriptions assigned to this employee
+        data = json.loads(request.body)
+        jd_id = data.get('jd_id')
+        # Prepare the response data
+        job_details = Job_desc.objects.filter(job_desc_id=jd_id)
+        return JsonResponse({"job_details": {
+            'jd_id': job_details[0].job_desc_id,
+            'jd_name': job_details[0].jd_name,
+            'responsibilities': job_details[0].responsiblities,
+            'sdate': job_details[0].sdate,
+            'ratings': job_details[0].ratings,
+            'selfratings': job_details[0].selfratings,
+            'remarks': job_details[0].remarks,
+            'status': job_details[0].status,
+            'email_id': job_details[0].email_id,
+        }}, status=200)
+
+    return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
 

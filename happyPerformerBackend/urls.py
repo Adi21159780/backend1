@@ -114,6 +114,7 @@ urlpatterns = [
     path('bulkEmployeeregistration/', views.bulkEmployeeregistration, name='bulkEmployeeregistration'),
     path('SopList/', views.SopList, name='SopList'),
     path('Jdlist/', views.JdList, name='JdList'),
+    path('JdDetails/', views.JdDetails, name='JdDetails'),
 ]
 
 
