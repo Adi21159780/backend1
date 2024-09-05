@@ -2216,23 +2216,40 @@ def UpdateBankDetails(request):
 
             if not all([holder_name, bank_name, acc_no, branch, acc_type, ifsc, Pan_no, emp_emailid]):
                 return JsonResponse({'status': 'error', 'message': 'Missing fields'}, status=400)
-
+            # Fetch the Employee instance based on the email ID
             try:
-                bank_details = Bank_details.objects.get(emp_emailid=emp_emailid)
-                bank_details.holder_name = holder_name
-                bank_details.bank_name = bank_name
-                bank_details.acc_no = acc_no
-                bank_details.branch = branch
-                bank_details.acc_type = acc_type
-                bank_details.ifsc = ifsc
-                bank_details.Pan_no = Pan_no
-                bank_details.emp_emailid = emp_emailid
-                bank_details.save()
+                employee = Employee.objects.get(emp_emailid=emp_emailid)
 
-                return JsonResponse({'status': 'success'})
+                # Check if bank details already exist and update them
+                try:
+                    bank_details = Bank_details.objects.get(emp_emailid=employee)
+                    bank_details.holder_name = holder_name
+                    bank_details.bank_name = bank_name
+                    bank_details.acc_no = acc_no
+                    bank_details.branch = branch
+                    bank_details.acc_type = acc_type
+                    bank_details.ifsc = ifsc
+                    bank_details.Pan_no = Pan_no
+                    bank_details.save()
 
-            except Bank_details.DoesNotExist:
-                return JsonResponse({'status': 'error', 'message': 'Bank details not found'}, status=404)
+                    return JsonResponse({'status': 'success', 'message': 'Bank details updated successfully'})
+
+                except Bank_details.DoesNotExist:
+                    # Create new bank details if not found
+                    Bank_details.objects.create(
+                        emp_emailid=employee,
+                        holder_name=holder_name,
+                        bank_name=bank_name,
+                        acc_no=acc_no,
+                        branch=branch,
+                        acc_type=acc_type,
+                        ifsc=ifsc,
+                        Pan_no=Pan_no
+                    )
+                    return JsonResponse({'status': 'success', 'message': 'Bank details created successfully'})
+
+            except Employee.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': 'Employee not found'}, status=404)
 
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
