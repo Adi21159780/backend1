@@ -2026,9 +2026,17 @@ def UpdatePersonalDetails(request):
     if not emp_emailid:
         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
 
+    # print(f"Logged in user email: {emp_emailid}")  # Debugging
+
+    # Fetch the Employee instance using the logged-in user's email
+    try:
+        employee = Employee.objects.get(emp_emailid=emp_emailid)
+    except Employee.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Employee not found'}, status=404)
+
     if request.method == 'GET':
         try:
-            personal_detail = Personal_details.objects.get(mail=emp_emailid)
+            personal_detail = Personal_details.objects.get(mail=employee)
             data = {
                 'first_name': personal_detail.first_name,
                 'last_name': personal_detail.last_name,
@@ -2052,6 +2060,7 @@ def UpdatePersonalDetails(request):
         try:
             data = json.loads(request.body)
 
+            # Extract data from request body
             first_name = data.get('first_name')
             last_name = data.get('last_name')
             address = data.get('address')
@@ -2065,29 +2074,36 @@ def UpdatePersonalDetails(request):
             emergency_name = data.get('emergency_name')
             emergency_contact = data.get('emergency_contact')
 
-            try:
-                personal_detail = Personal_details.objects.get(mail=emp_emailid)
-                personal_detail.first_name = first_name
-                personal_detail.last_name = last_name
-                personal_detail.address = address
-                personal_detail.state = state
-                personal_detail.city = city
-                personal_detail.district = district
-                personal_detail.post_code = post_code
-                personal_detail.Contact = Contact
-                personal_detail.birth_date = birth_date
-                personal_detail.gender = gender
-                personal_detail.emergency_name = emergency_name
-                personal_detail.emergency_contact = emergency_contact
-                personal_detail.save()
-                return JsonResponse({'status': 'success'})
-            except Personal_details.DoesNotExist:
-                return JsonResponse({'status': 'error', 'message': 'User not found'}, status=404)
+            # Use get_or_create to find or create a new Personal_details entry
+            personal_detail, created = Personal_details.objects.get_or_create(mail=employee)
+
+            # Update or set details
+            personal_detail.first_name = first_name
+            personal_detail.last_name = last_name
+            personal_detail.address = address
+            personal_detail.state = state
+            personal_detail.city = city
+            personal_detail.district = district
+            personal_detail.post_code = post_code
+            personal_detail.Contact = Contact
+            personal_detail.birth_date = birth_date
+            personal_detail.gender = gender
+            personal_detail.emergency_name = emergency_name
+            personal_detail.emergency_contact = emergency_contact
+            personal_detail.save()
+
+            # Send appropriate response based on whether the record was created or updated
+            if created:
+                return JsonResponse({'status': 'success', 'message': 'Personal details created successfully.'}, status=201)
+            else:
+                return JsonResponse({'status': 'success', 'message': 'Personal details updated successfully.'}, status=200)
 
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
 
 
 @csrf_exempt
@@ -2098,6 +2114,7 @@ def UpdateJobDetails(request):
 
     if request.method == 'GET':
         try:
+            # Try to retrieve the job_info for the employee's email
             job_info = Job_info.objects.get(emp_emailid=emp_emailid)
 
             data = {
@@ -2109,37 +2126,57 @@ def UpdateJobDetails(request):
 
             return JsonResponse({'status': 'success', 'data': data})
 
-        except Personal_details.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Personal details not found'}, status=404)
+        except Job_info.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Job information not found. You can add your own details.'}, status=404)
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
     elif request.method == 'PUT':
         try:
-            job_title = request.POST.get('job_title')
-            department = request.POST.get('department')
-            working_type = request.POST.get('working_type')
-            start_date = request.POST.get('start_date')
+            # Parse JSON data from the request body
+            data = json.loads(request.body.decode('utf-8'))
 
-            try:
-                job_info = Job_info.objects.get(emp_emailid=emp_emailid)
-                job_info.job_title = job_title
-                job_info.department = department
-                job_info.working_type = working_type
-                job_info.start_date = start_date
+            # Collect data from the parsed JSON
+            job_title = data.get('job_title')
+            department = data.get('department')
+            working_type = data.get('working_type')
+            start_date = data.get('start_date')
 
-                job_info.save()
+            # Validate the data
+            if not all([job_title, department, working_type, start_date]):
+                return JsonResponse({'status': 'error', 'message': 'All fields are required'}, status=400)
 
-                return JsonResponse({'status': 'success'})
-            except Personal_details.DoesNotExist:
-                return JsonResponse({'status': 'error', 'message': 'Personal details not found'}, status=404)
-            except Exception as e:
-                return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+            # Retrieve the employee instance using the email
+            employee = Employee.objects.get(emp_emailid=emp_emailid)
 
+            # Get or create a new Job_info object for the employee
+            job_info, created = Job_info.objects.get_or_create(emp_emailid=employee)
+            
+            # Update the job_info fields with the new data
+            job_info.job_title = job_title
+            job_info.department = department
+            job_info.working_type = working_type
+            job_info.start_date = start_date
+
+            # Save the updated or newly created job_info object
+            job_info.save()
+
+            # Respond with appropriate message based on whether a new job_info was created or updated
+            if created:
+                return JsonResponse({'status': 'success', 'message': 'Job information created successfully'})
+            else:
+                return JsonResponse({'status': 'success', 'message': 'Job information updated successfully'})
+
+        except Employee.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Employee not found'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
 
 
 @csrf_exempt
@@ -5000,7 +5037,6 @@ def bulkUploadEmployeeDetailsUpload(request):
                     email = row.get('emp_emailid').strip().lower()
                     employee = get_or_create_employee(email)
                     try:
-                        # Either update or create the job info
                         job_info, created = Job_info.objects.update_or_create(
                             emp_emailid=employee,  # Use the Employee instance
                             defaults={
@@ -5012,6 +5048,8 @@ def bulkUploadEmployeeDetailsUpload(request):
                         )
                     except Exception as e:
                         errors.append(f"{email}: {str(e)}")
+            else:
+                return JsonResponse({'error': 'Job info file not uploaded'}, status=400)
 
             # Handling qualification details Excel file
             if 'qualification_details' in request.FILES:
@@ -5073,101 +5111,6 @@ def bulkUploadEmployeeDetailsUpload(request):
     
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
-
-
-
-# @csrf_exempt
-# def SopList(request, sop_id=None):
-#     # Get the logged-in user's email and role
-#     user_email = request.session.get('emp_emailid')
-#     if not user_email:
-#         return JsonResponse({'error': 'User not logged in'}, status=401)
-
-#     # Get the employee object to determine their role
-#     try:
-#         employee = Employee.objects.get(emp_emailid=user_email)
-#     except Employee.DoesNotExist:
-#         return JsonResponse({'error': 'Employee not found'}, status=404)
-
-#     user_role = employee.emp_role.lower()
-
-#     if request.method == 'GET':
-#         # Existing code for GET method
-#         if sop_id:
-#             # Fetch the specific SOP using the sop_id
-#             try:
-#                 sop = Sop.objects.get(sop_id=sop_id)
-#             except Sop.DoesNotExist:
-#                 return JsonResponse({'error': 'SOP not found'}, status=404)
-
-#             # Prepare the data for the specific SOP
-#             sop_data = {
-#                 'sop_id': sop.sop_id,
-#                 'type': sop.type,
-#                 's_name': sop.s_name,
-#                 'sdate': sop.sdate,
-#                 'sop_file': sop.sop_file.url if sop.sop_file else None,
-#                 'ratings': sop.ratings,
-#                 'selfratings': sop.selfratings,
-#                 'remarks': sop.remarks,
-#                 'd_id': sop.d_id_id,
-#             }
-#             return JsonResponse(sop_data, status=200)
-
-#         else:
-#             # Fetch all SOPs from the database
-#             sops = Sop.objects.all()
-#             sop_data_list = []
-#             for sop in sops:
-#                 sop_data = {
-#                     'sop_id': sop.sop_id,
-#                     'type': sop.type,
-#                     's_name': sop.s_name,
-#                     'sdate': sop.sdate,
-#                     'sop_file': sop.sop_file.url if sop.sop_file else None,
-#                     'ratings': sop.ratings,
-#                     'selfratings': sop.selfratings,
-#                     'remarks': sop.remarks,
-#                     'd_id': sop.d_id_id,
-#                 }
-#                 sop_data_list.append(sop_data)
-#             return JsonResponse(sop_data_list, safe=False, status=200)
-
-#     elif request.method == 'POST':
-#         try:
-#             data = json.loads(request.body)
-            
-#             # Accept sop_id from the request body if not provided in the URL
-#             sop_id = sop_id or data.get('sop_id')
-            
-#             if not sop_id:
-#                 return JsonResponse({'error': 'SOP ID is required for updating'}, status=400)
-
-#             # Fetch the specific SOP using the sop_id
-#             try:
-#                 sop = Sop.objects.get(sop_id=sop_id)
-#             except Sop.DoesNotExist:
-#                 return JsonResponse({'error': 'SOP not found'}, status=404)
-
-#             # Allow managers to update ratings and remarks
-#             if user_role == 'manager':
-#                 sop.ratings = data.get('ratings', sop.ratings)
-#                 sop.remarks = data.get('remarks', sop.remarks)
-
-#             # Allow all employees (including managers) to update selfratings
-#             sop.selfratings = data.get('selfratings', sop.selfratings)
-
-#             # Save the updated SOP
-#             sop.save()
-
-#             return JsonResponse({'status': 'SOP details updated successfully.'}, status=200)
-
-#         except json.JSONDecodeError:
-#             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-#         except Exception as e:
-#             return JsonResponse({'error': str(e)}, status=500)
-
-#     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 @csrf_exempt
@@ -5320,78 +5263,30 @@ def JdList(request):
         data = json.loads(request.body)
         sdate = data.get('sdate')
         # Prepare the response data
-        job_details = Job_desc.objects.filter(sdate=sdate)
-        return JsonResponse({"job_details": {
-            'jd_id': job_details[0].job_desc_id,
-            'jd_name': job_details[0].jd_name,
-            'responsibilities': job_details[0].responsiblities,
-            'sdate': job_details[0].sdate,
-            'ratings': job_details[0].ratings,
-            'selfratings': job_details[0].selfratings,
-            'remarks': job_details[0].remarks,
-            'status': job_details[0].status,
-            'email_id': job_details[0].email_id,
-        }}, status=200)
+        # Fetch only job descriptions for the logged-in user and the given date
+        job_details_queryset = Job_desc.objects.filter(sdate=sdate, email_id=user_email)
 
+        # If no job descriptions are found, return an empty response
+        if not job_details_queryset.exists():
+            return JsonResponse({"job_details": []}, status=200)
+        
+        job_details_list = []
+        for job in job_details_queryset:
+            job_details_list.append({
+                'jd_id': job.job_desc_id,
+                'jd_name': job.jd_name,
+                'responsibilities': job.responsiblities,
+                'sdate': job.sdate,
+                'ratings': job.ratings,
+                'selfratings': job.selfratings,
+                'remarks': job.remarks,
+                'status': job.status,
+                'email_id': job.email_id,
+            })
+
+        # Return the list of job descriptions
+        return JsonResponse({"job_details": job_details_list}, status=200)
     return JsonResponse({"error": "Invalid request method"}, status=400)
-
-
-    return JsonResponse({"error": "Invalid request method"}, status=400)
-
-
-# @csrf_exempt
-# def JdDetails(request):
-#     company_id = request.session.get('c_id')
-#     user_email = request.session.get('emp_emailid')
-#     if not user_email or not company_id:
-#         return JsonResponse({'error': 'User not logged in'}, status=401)
-    
-#     try:
-#         employee = Employee.objects.get(emp_emailid=user_email)
-#     except Employee.DoesNotExist:
-#         return JsonResponse({'error': 'Employee not found'}, status=404)
-
-#     user_role = employee.emp_role.lower()
-
-#     if request.method == 'POST':
-#             try:
-#                 data = json.loads(request.body)
-                
-#                 # Accept sop_id from the request body if not provided in the URL
-#                 jd_id = jd_id or data.get('jd_id')
-                
-#                 if not jd_id:
-#                     return JsonResponse({'error': 'SOP ID is required for updating'}, status=400)
-
-#                 # Fetch the specific SOP using the sop_id
-#                 try:
-#                     Job_desc = Job_desc.objects.get(jd_id=jd_id)
-#                 except Sop.DoesNotExist:
-#                     return JsonResponse({'error': 'SOP not found'}, status=404)
-
-#                 # Check if the user is a manager
-#                 if user_role == 'manager' or user_role == 'super manager':
-#                     Job_desc.ratings = data.get('ratings', Job_desc.ratings)
-#                     Job_desc.remarks = data.get('remarks', Job_desc.remarks)
-#                 else:
-#                     # Check if the user is attempting to update ratings or remarks without permission
-#                     if 'ratings' in data or 'remarks' in data:
-#                         return JsonResponse({'error': 'You do not have permission to update ratings or remarks.'}, status=403)
-
-#                 # Allow all employees (including managers) to update selfratings
-#                 Job_desc.selfratings = data.get('selfratings', Job_desc.selfratings)
-
-#                 # Save the updated SOP
-#                 Job_desc.save()
-
-#                 return JsonResponse({'status': 'SOP details updated successfully.'}, status=200)
-
-#             except json.JSONDecodeError:
-#                 return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-#             except Exception as e:
-#                 return JsonResponse({'error': str(e)}, status=500)
-
-#     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 @csrf_exempt
