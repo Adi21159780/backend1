@@ -2257,14 +2257,98 @@ def UpdateBankDetails(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
+# @csrf_exempt
+# def UpdateWorkExperience(request):
+#     emp_emailid = request.session.get('emp_emailid')
+#     if not emp_emailid:
+#         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
+
+#     if request.method == 'GET':
+#         work_experiences = Work_exp.objects.filter(emp_emailid=emp_emailid)
+
+#         work_exp_list = []
+#         for work_exp in work_experiences:
+#             work_exp_list.append({
+#                 'W_Id': work_exp.W_Id,
+#                 'start_date': work_exp.start_date,
+#                 'end_date': work_exp.end_date,
+#                 'comp_name': work_exp.comp_name,
+#                 'comp_location': work_exp.comp_location,
+#                 'designation': work_exp.designation,
+#                 'gross_salary': work_exp.gross_salary,
+#                 'leave_reason': work_exp.leave_reason
+#             })
+
+#         return JsonResponse(work_exp_list, safe=False)
+
+#     elif request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#             W_Id = request.GET.get('W_Id')
+#             work_exp = get_object_or_404(Work_exp, W_id=W_Id, emp_emailid=emp_emailid)
+
+#             work_exp = Work_exp(
+#                 emp_emailid=emp_emailid,
+#                 start_date=data['start_date'],
+#                 end_date=data['end_date'],
+#                 comp_name=data['comp_name'],
+#                 comp_location=data['comp_location'],
+#                 designation=data['designation'],
+#                 gross_salary=data['gross_salary'],
+#                 leave_reason=data['leave_reason']
+#             )
+#             work_exp.save()
+#             return JsonResponse({'message': 'Work experience added successfully', 'W_Id': work_exp.W_Id})
+#         except (KeyError, ValueError) as e:
+#             return HttpResponseBadRequest(f"Invalid data: {e}")
+
+#     elif request.method == 'PUT':
+#         try:
+#             data = json.loads(request.body)
+#             W_Id = request.GET.get('W_Id')
+#             work_exp = get_object_or_404(Work_exp, W_id=W_Id, emp_emailid=emp_emailid)
+
+#             work_exp.start_date = data['start_date']
+#             work_exp.end_date = data['end_date']
+#             work_exp.comp_name = data['comp_name']
+#             work_exp.comp_location = data['comp_location']
+#             work_exp.designation = data['designation']
+#             work_exp.gross_salary = data['gross_salary']
+#             work_exp.leave_reason = data['leave_reason']
+#             work_exp.emp_emailid = data['emp_emailid']
+#             work_exp.save()
+
+#             return JsonResponse({'message': 'Work experience updated successfully'})
+#         except (KeyError, ValueError) as e:
+#             return HttpResponseBadRequest(f"Invalid data: {e}")
+
+#     elif request.method == 'DELETE':
+#         try:
+#             W_Id = request.GET.get('W_Id')
+#             work_exp = get_object_or_404(Work_exp, W_Id=W_Id, emp_emailid=emp_emailid)
+#             work_exp.delete()
+
+#             return JsonResponse({'message': 'Work experience deleted successfully'})
+#         except KeyError as e:
+#             return HttpResponseBadRequest(f"Invalid data: {e}")
+
+#     else:
+#         return HttpResponseNotAllowed(['GET', 'POST', 'PUT', 'DELETE'])
+
+
 @csrf_exempt
 def UpdateWorkExperience(request):
+    print("View is being accessed")
     emp_emailid = request.session.get('emp_emailid')
     if not emp_emailid:
         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
 
+    # Fetch the Employee instance using the emp_emailid from the session
+    employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
+
     if request.method == 'GET':
-        work_experiences = Work_exp.objects.filter(emp_emailid=emp_emailid)
+        # Fetch only the logged-in user's work experience
+        work_experiences = Work_exp.objects.filter(emp_emailid=employee)
 
         work_exp_list = []
         for work_exp in work_experiences:
@@ -2284,56 +2368,78 @@ def UpdateWorkExperience(request):
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
-            W_Id = request.GET.get('W_Id')
-            work_exp = get_object_or_404(Work_exp, W_id=W_Id, emp_emailid=emp_emailid)
 
-            work_exp = Work_exp(
-                emp_emailid=emp_emailid,
-                start_date=data['start_date'],
-                end_date=data['end_date'],
-                comp_name=data['comp_name'],
-                comp_location=data['comp_location'],
-                designation=data['designation'],
-                gross_salary=data['gross_salary'],
-                leave_reason=data['leave_reason']
-            )
-            work_exp.save()
-            return JsonResponse({'message': 'Work experience added successfully', 'W_Id': work_exp.W_Id})
+            # Check if work experience already exists for the logged-in user
+            work_exp = Work_exp.objects.filter(emp_emailid=employee).first()
+
+            if work_exp:  # If it exists, update the entry
+                work_exp.start_date = data['start_date']
+                work_exp.end_date = data['end_date']
+                work_exp.comp_name = data['comp_name']
+                work_exp.comp_location = data['comp_location']
+                work_exp.designation = data['designation']
+                work_exp.gross_salary = data['gross_salary']
+                work_exp.leave_reason = data['leave_reason']
+                work_exp.save()
+
+                return JsonResponse({'message': 'Work experience updated successfully', 'W_Id': work_exp.W_Id})
+            else:  # If it doesn't exist, create a new entry
+                work_exp = Work_exp(
+                    emp_emailid=employee,
+                    start_date=data['start_date'],
+                    end_date=data['end_date'],
+                    comp_name=data['comp_name'],
+                    comp_location=data['comp_location'],
+                    designation=data['designation'],
+                    gross_salary=data['gross_salary'],
+                    leave_reason=data['leave_reason']
+                )
+                work_exp.save()
+
+                return JsonResponse({'message': 'Work experience created successfully', 'W_Id': work_exp.W_Id})
+            
         except (KeyError, ValueError) as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
 
-    elif request.method == 'PUT':
-        try:
-            data = json.loads(request.body)
-            W_Id = request.GET.get('W_Id')
-            work_exp = get_object_or_404(Work_exp, W_id=W_Id, emp_emailid=emp_emailid)
+    # elif request.method == 'DELETE':
+    #     try:
+    #         data = json.loads(request.body)
+    #         W_Id = data.get('W_Id')  # Retrieve W_Id from the request body
 
-            work_exp.start_date = data['start_date']
-            work_exp.end_date = data['end_date']
-            work_exp.comp_name = data['comp_name']
-            work_exp.comp_location = data['comp_location']
-            work_exp.designation = data['designation']
-            work_exp.gross_salary = data['gross_salary']
-            work_exp.leave_reason = data['leave_reason']
-            work_exp.emp_emailid = data['emp_emailid']
-            work_exp.save()
+    #         if not W_Id:
+    #             return JsonResponse({'status': 'error', 'message': 'W_Id is required'}, status=400)
 
-            return JsonResponse({'message': 'Work experience updated successfully'})
-        except (KeyError, ValueError) as e:
-            return HttpResponseBadRequest(f"Invalid data: {e}")
+    #         work_exp = get_object_or_404(Work_exp, W_Id=W_Id, emp_emailid=employee)
+
+    #         # Ensure only HR, manager, or super manager can delete
+    #         if employee.emp_role not in ['HR', 'manager', 'super manager']:
+    #             return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+
+    #         work_exp.delete()
+    #         return JsonResponse({'message': 'Work experience deleted successfully'})
+    #     except KeyError as e:
+    #         return HttpResponseBadRequest(f"Invalid data: {e}")
 
     elif request.method == 'DELETE':
         try:
-            W_Id = request.GET.get('W_Id')
-            work_exp = get_object_or_404(Work_exp, W_Id=W_Id, emp_emailid=emp_emailid)
-            work_exp.delete()
+            W_Id = request.GET.get('W_Id')  # Retrieve W_Id from query params
 
+            if not W_Id:
+                return JsonResponse({'status': 'error', 'message': 'W_Id is required'}, status=400)
+
+            work_exp = get_object_or_404(Work_exp, W_Id=W_Id, emp_emailid=employee)
+
+            # Ensure only HR, manager, or super manager can delete
+            if employee.emp_role not in ['HR', 'manager', 'super manager']:
+                return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+
+            work_exp.delete()
             return JsonResponse({'message': 'Work experience deleted successfully'})
         except KeyError as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
-
     else:
-        return HttpResponseNotAllowed(['GET', 'POST', 'PUT', 'DELETE'])
+        return HttpResponseNotAllowed(['GET', 'POST', 'DELETE'])
+
 
 
 @csrf_exempt

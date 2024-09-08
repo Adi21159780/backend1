@@ -60,7 +60,6 @@ urlpatterns = [
     path('UpdateJobDetails/', views.UpdateJobDetails, name='UpdateJobDetails'),
     path('UpdateBankDetails/', views.UpdateBankDetails, name='UpdateBankDetails'),
     path('UpdateWorkExperience/', views.UpdateWorkExperience, name='UpdateWorkExperience'),
-    path('UpdateDependent/', views.UpdateDependent, name='UpdateDependent'),
     path('UpdateAdhaar/', views.UpdateAdhaar, name='UpdateAdhaar'),
     path('UpdateLicence/', views.UpdateLicence, name='UpdateLicence'),
     path('UpdatePassport/', views.UpdatePassport, name='UpdatePassport'),
@@ -115,6 +114,7 @@ urlpatterns = [
     path('SopList/', views.SopList, name='SopList'),
     path('Jdlist/', views.JdList, name='JdList'),
     path('JdDetails/', views.JdDetails, name='JdDetails'),
+    path('Updatedependent/', views.UpdateDependent, name='UpdateDependent'),
 ]
 
 
