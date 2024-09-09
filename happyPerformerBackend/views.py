@@ -2401,11 +2401,8 @@ def UpdateWorkExperience(request):
         except (KeyError, ValueError) as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
 
-    employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
 
-  
-
-    if request.method == 'PUT':
+    elif request.method == 'PUT':
         try:
             data = json.loads(request.body)
             email_to_delete = data.get('emp_emailid')  # The email ID of the employee whose record is to be deleted
