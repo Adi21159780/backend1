@@ -2338,7 +2338,7 @@ def UpdateBankDetails(request):
 
 @csrf_exempt
 def UpdateWorkExperience(request):
-    print("View is being accessed")
+    # print("View is being accessed")
     emp_emailid = request.session.get('emp_emailid')
     if not emp_emailid:
         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
@@ -2401,44 +2401,38 @@ def UpdateWorkExperience(request):
         except (KeyError, ValueError) as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
 
-    # elif request.method == 'DELETE':
-    #     try:
-    #         data = json.loads(request.body)
-    #         W_Id = data.get('W_Id')  # Retrieve W_Id from the request body
+    employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
 
-    #         if not W_Id:
-    #             return JsonResponse({'status': 'error', 'message': 'W_Id is required'}, status=400)
+  
 
-    #         work_exp = get_object_or_404(Work_exp, W_Id=W_Id, emp_emailid=employee)
-
-    #         # Ensure only HR, manager, or super manager can delete
-    #         if employee.emp_role not in ['HR', 'manager', 'super manager']:
-    #             return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
-
-    #         work_exp.delete()
-    #         return JsonResponse({'message': 'Work experience deleted successfully'})
-    #     except KeyError as e:
-    #         return HttpResponseBadRequest(f"Invalid data: {e}")
-
-    elif request.method == 'DELETE':
+    if request.method == 'PUT':
         try:
-            W_Id = request.GET.get('W_Id')  # Retrieve W_Id from query params
+            data = json.loads(request.body)
+            email_to_delete = data.get('emp_emailid')  # The email ID of the employee whose record is to be deleted
 
-            if not W_Id:
-                return JsonResponse({'status': 'error', 'message': 'W_Id is required'}, status=400)
-
-            work_exp = get_object_or_404(Work_exp, W_Id=W_Id, emp_emailid=employee)
-
-            # Ensure only HR, manager, or super manager can delete
-            if employee.emp_role not in ['HR', 'manager', 'super manager']:
+              # Check the user's role
+            if employee.emp_role not in ['Manager', 'Super Manager', 'hr']:
                 return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+    
+            if not email_to_delete:
+                return JsonResponse({'status': 'error', 'message': 'emp_emailid is required'}, status=400)
 
-            work_exp.delete()
-            return JsonResponse({'message': 'Work experience deleted successfully'})
+            # Fetch the work experience record for the given email ID
+            work_experiences = Work_exp.objects.filter(emp_emailid=email_to_delete)
+
+            if not work_experiences.exists():
+                return JsonResponse({'status': 'error', 'message': 'No work experience found for the given email'}, status=404)
+
+            # Delete all work experiences for the target employee
+            work_experiences.delete()
+
+            return JsonResponse({'message': 'Work experience(s) deleted successfully'})
         except KeyError as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
+
+
     else:
-        return HttpResponseNotAllowed(['GET', 'POST', 'DELETE'])
+        return HttpResponseNotAllowed(['GET', 'POST', 'PUT'])
 
 
 
