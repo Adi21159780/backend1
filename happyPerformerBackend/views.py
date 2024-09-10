@@ -2257,84 +2257,6 @@ def UpdateBankDetails(request):
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-# @csrf_exempt
-# def UpdateWorkExperience(request):
-#     emp_emailid = request.session.get('emp_emailid')
-#     if not emp_emailid:
-#         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
-
-#     if request.method == 'GET':
-#         work_experiences = Work_exp.objects.filter(emp_emailid=emp_emailid)
-
-#         work_exp_list = []
-#         for work_exp in work_experiences:
-#             work_exp_list.append({
-#                 'W_Id': work_exp.W_Id,
-#                 'start_date': work_exp.start_date,
-#                 'end_date': work_exp.end_date,
-#                 'comp_name': work_exp.comp_name,
-#                 'comp_location': work_exp.comp_location,
-#                 'designation': work_exp.designation,
-#                 'gross_salary': work_exp.gross_salary,
-#                 'leave_reason': work_exp.leave_reason
-#             })
-
-#         return JsonResponse(work_exp_list, safe=False)
-
-#     elif request.method == 'POST':
-#         try:
-#             data = json.loads(request.body)
-#             W_Id = request.GET.get('W_Id')
-#             work_exp = get_object_or_404(Work_exp, W_id=W_Id, emp_emailid=emp_emailid)
-
-#             work_exp = Work_exp(
-#                 emp_emailid=emp_emailid,
-#                 start_date=data['start_date'],
-#                 end_date=data['end_date'],
-#                 comp_name=data['comp_name'],
-#                 comp_location=data['comp_location'],
-#                 designation=data['designation'],
-#                 gross_salary=data['gross_salary'],
-#                 leave_reason=data['leave_reason']
-#             )
-#             work_exp.save()
-#             return JsonResponse({'message': 'Work experience added successfully', 'W_Id': work_exp.W_Id})
-#         except (KeyError, ValueError) as e:
-#             return HttpResponseBadRequest(f"Invalid data: {e}")
-
-#     elif request.method == 'PUT':
-#         try:
-#             data = json.loads(request.body)
-#             W_Id = request.GET.get('W_Id')
-#             work_exp = get_object_or_404(Work_exp, W_id=W_Id, emp_emailid=emp_emailid)
-
-#             work_exp.start_date = data['start_date']
-#             work_exp.end_date = data['end_date']
-#             work_exp.comp_name = data['comp_name']
-#             work_exp.comp_location = data['comp_location']
-#             work_exp.designation = data['designation']
-#             work_exp.gross_salary = data['gross_salary']
-#             work_exp.leave_reason = data['leave_reason']
-#             work_exp.emp_emailid = data['emp_emailid']
-#             work_exp.save()
-
-#             return JsonResponse({'message': 'Work experience updated successfully'})
-#         except (KeyError, ValueError) as e:
-#             return HttpResponseBadRequest(f"Invalid data: {e}")
-
-#     elif request.method == 'DELETE':
-#         try:
-#             W_Id = request.GET.get('W_Id')
-#             work_exp = get_object_or_404(Work_exp, W_Id=W_Id, emp_emailid=emp_emailid)
-#             work_exp.delete()
-
-#             return JsonResponse({'message': 'Work experience deleted successfully'})
-#         except KeyError as e:
-#             return HttpResponseBadRequest(f"Invalid data: {e}")
-
-#     else:
-#         return HttpResponseNotAllowed(['GET', 'POST', 'PUT', 'DELETE'])
-
 
 @csrf_exempt
 def UpdateWorkExperience(request):
@@ -2408,7 +2330,7 @@ def UpdateWorkExperience(request):
             email_to_delete = data.get('emp_emailid')  # The email ID of the employee whose record is to be deleted
 
               # Check the user's role
-            if employee.emp_role not in ['Manager', 'Super Manager', 'hr']:
+            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
                 return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
     
             if not email_to_delete:
@@ -2439,6 +2361,8 @@ def UpdateDependent(request):
     if not emp_emailid:
         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
 
+    employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
+
     if request.method == 'GET':
         dependents = Dependent.objects.filter(emp_emailid=emp_emailid)
 
@@ -2458,9 +2382,13 @@ def UpdateDependent(request):
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
-
+        
+            # Fetch the Employee instance
+            employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
+        
+        # Create and save the new dependent
             dependent = Dependent(
-                emp_emailid=emp_emailid,
+                emp_emailid=employee,  # Use the Employee instance, not the email string
                 D_name=data['D_name'],
                 D_gender=data['D_gender'],
                 D_dob=data['D_dob'],
@@ -2469,16 +2397,22 @@ def UpdateDependent(request):
             )
             dependent.save()
 
-            return JsonResponse({'message': 'Dependent added successfully', 'D_Id': dependent.id})
+            return JsonResponse({'message': 'Dependent added successfully', 'D_Id': dependent.D_Id})
         except (KeyError, ValueError) as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
+
 
     elif request.method == 'PUT':
         try:
             data = json.loads(request.body)
-            D_Id = request.GET.get('D_Id')
-            dependent = get_object_or_404(Dependent, D_Id = D_Id, emp_emailid=emp_emailid)
+            D_Id = data.get('D_Id')  # Get D_Id from the request body instead of query params
+            if not D_Id:
+                return JsonResponse({'status': 'error', 'message': 'D_Id is required'}, status=400)
+            
 
+            dependent = get_object_or_404(Dependent, D_Id=D_Id, emp_emailid=emp_emailid)
+
+            # Update the dependent's information
             dependent.D_name = data['D_name']
             dependent.D_gender = data['D_gender']
             dependent.D_dob = data['D_dob']
@@ -2494,6 +2428,10 @@ def UpdateDependent(request):
         try:
             D_Id = request.GET.get('D_Id')
             dependent = get_object_or_404(Dependent, D_Id = D_Id, emp_emailid=emp_emailid)
+
+            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
+                return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+            
             dependent.delete()
 
             return JsonResponse({'message': 'Dependent deleted successfully'})
