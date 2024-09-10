@@ -2290,11 +2290,16 @@ def UpdateWorkExperience(request):
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
-
-            # Check if work experience already exists for the logged-in user
-            work_exp = Work_exp.objects.filter(emp_emailid=employee).first()
-
-            work_exp = Work_exp(
+            
+            # Fetch the Employee instance using the emp_emailid from the session
+            emp_emailid = request.session.get('emp_emailid')
+            if not emp_emailid:
+                return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
+    
+            employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
+    
+            # Check if work experience with the same details already exists for the logged-in employee
+            existing_work_exp = Work_exp.objects.filter(
                 emp_emailid=employee,
                 start_date=data['start_date'],
                 end_date=data['end_date'],
@@ -2303,42 +2308,78 @@ def UpdateWorkExperience(request):
                 designation=data['designation'],
                 gross_salary=data['gross_salary'],
                 leave_reason=data['leave_reason']
-            )
-            work_exp.save()
-
-            return JsonResponse({'message': 'Work experience created successfully', 'W_Id': work_exp.W_Id})
-            
+            ).exists()
+    
+            if existing_work_exp:
+                return JsonResponse({'status': 'error', 'message': 'Work experience with these details already exists'}, status=400)
+    
+            # If W_Id is provided, try to update the existing work experience
+            if 'W_Id' in data:
+                work_exp = Work_exp.objects.filter(W_Id=data['W_Id'], emp_emailid=employee).first()
+                if not work_exp:
+                    return JsonResponse({'status': 'error', 'message': 'Work experience not found for the provided W_Id'}, status=404)
+    
+                # Update the existing work experience
+                work_exp.start_date = data['start_date']
+                work_exp.end_date = data['end_date']
+                work_exp.comp_name = data['comp_name']
+                work_exp.comp_location = data['comp_location']
+                work_exp.designation = data['designation']
+                work_exp.gross_salary = data['gross_salary']
+                work_exp.leave_reason = data['leave_reason']
+                work_exp.save()
+    
+                return JsonResponse({'message': 'Work experience updated successfully', 'W_Id': work_exp.W_Id})
+    
+            else:
+                # If W_Id is not provided, create a new work experience entry
+                new_work_exp = Work_exp(
+                    emp_emailid=employee,
+                    start_date=data['start_date'],
+                    end_date=data['end_date'],
+                    comp_name=data['comp_name'],
+                    comp_location=data['comp_location'],
+                    designation=data['designation'],
+                    gross_salary=data['gross_salary'],
+                    leave_reason=data['leave_reason']
+                )
+                new_work_exp.save()
+    
+                return JsonResponse({'message': 'Work experience created successfully', 'W_Id': new_work_exp.W_Id})
+        
         except (KeyError, ValueError) as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
+    
+    
     elif request.method == 'PUT':
         try:
             # Parse the incoming JSON data
             data = json.loads(request.body)
-            
+
             # Retrieve the email and work experience ID
             email_to_delete = data.get('emp_emailid')  # The email ID of the employee whose record is to be deleted
             work_exp_id = data.get('W_Id')  # The ID of the specific work experience to delete
-    
+
             # Check if the user's role has permission to delete
             if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
                 return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
-    
+
             # Ensure emp_emailid is provided
             if not email_to_delete:
                 return JsonResponse({'status': 'error', 'message': 'emp_emailid is required'}, status=400)
-    
+
             # Ensure W_Id is provided
             if not work_exp_id:
                 return JsonResponse({'status': 'error', 'message': 'W_Id is required'}, status=400)
-    
+
             # Fetch the specific work experience for the given email and W_Id
             work_experience = get_object_or_404(Work_exp, W_Id=work_exp_id, emp_emailid=email_to_delete)
-    
+
             # Delete the specific work experience
             work_experience.delete()
-    
+
             return JsonResponse({'message': 'Work experience deleted successfully'})
-        
+
         except KeyError as e:
             return HttpResponseBadRequest(f"Invalid data: {e}")
         except Work_exp.DoesNotExist:
