@@ -114,7 +114,7 @@ urlpatterns = [
     path('SopList/', views.SopList, name='SopList'),
     path('Jdlist/', views.JdList, name='JdList'),
     path('JdDetails/', views.JdDetails, name='JdDetails'),
-    path('Updatedependent/', views.UpdateDependent, name='UpdateDependent'),
+    path('UpdateDependent/', views.UpdateDependent, name='UpdateDependent'),
 ]
 
 
