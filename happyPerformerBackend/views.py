@@ -2703,6 +2703,7 @@ def UpdatePan(request):
 @csrf_exempt
 def UpdateQualification(request):
     emp_emailid = request.session.get('emp_emailid')
+    employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
     if not emp_emailid:
         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
 
@@ -2727,9 +2728,10 @@ def UpdateQualification(request):
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
+            employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
 
             qualification = Qualification(
-                emp_emailid = emp_emailid,
+                emp_emailid = employee,
                 q_type=data['q_type'],
                 q_degree=data['q_degree'],
                 q_clg=data['q_clg'],
@@ -2749,7 +2751,7 @@ def UpdateQualification(request):
             data = json.loads(request.body)
             Q_Id = request.GET.get('Q_Id')
             qualification = Qualification.objects.get(Q_Id=Q_Id, emp_emailid=emp_emailid)
-
+            emp_emailid=employee,
             qualification.q_type = data['q_type']
             qualification.q_degree = data['q_degree']
             qualification.q_clg = data['q_clg']
@@ -2769,6 +2771,12 @@ def UpdateQualification(request):
         try:
             Q_Id = request.GET.get('Q_Id')
             qualification = Qualification.objects.get(Q_Id=Q_Id, emp_emailid=emp_emailid)
+
+            employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
+
+            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
+                return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+            
             qualification.delete()
 
             return JsonResponse({'message': 'Qualification deleted successfully'})
