@@ -561,7 +561,7 @@ class Ot(models.Model):
 
 class Pan(models.Model):
     Pan_Id = models.BigAutoField(primary_key=True)
-    pan_no = models.BigIntegerField()
+    pan_no = models.CharField(max_length=30, null=False)
     pan_name = models.CharField(max_length=200)
     pan_pic = models.FileField(upload_to='PAN/', validators=[validate_image_extension], default=None)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None)
@@ -569,7 +569,7 @@ class Pan(models.Model):
 
 class Passport(models.Model):
     Pass_Id = models.BigAutoField(primary_key=True)
-    passport_no = models.BigIntegerField()
+    passport_no = models.CharField(null=False)
     passport_name = models.CharField(max_length=200)
     passport_validity = models.DateField()
     passport_pic = models.FileField(upload_to='Passport/', default=None, validators=[validate_image_extension])
