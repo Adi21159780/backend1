@@ -2559,7 +2559,7 @@ def UpdateLicence(request):
     elif request.method == 'POST':
         data = request.POST
         file = request.FILES.get('licence_pic')
-        licence, created = Licence.objects.update_or_create(
+        licence_record, created = Licence.objects.update_or_create(
             emp_emailid=employee,
             defaults={
                 'licence_no': data['licence_no'],
@@ -2571,15 +2571,14 @@ def UpdateLicence(request):
         if created:
             return JsonResponse({'message': 'Licence details created successfully!'}, status=201)
         else:
-            license.licence_no = data['licence_no']
-            license.licence_name = data['licence_name']
-            license.expiry_date = data['expiry_date']
+            # Update the licence details if already exists
+            licence_record.licence_no = data['licence_no']
+            licence_record.licence_name = data['licence_name']
+            licence_record.expiry_date = data['expiry_date']
             if file:
-                license.licence_pic = file
-            license.save()
+                licence_record.licence_pic = file
+            licence_record.save()
             return JsonResponse({'message': 'Licence details updated successfully!'})
-
-        return JsonResponse({'message': 'Licence details saved successfully!'})
 
     elif request.method == 'DELETE':
         licence = get_object_or_404(Licence, emp_emailid=employee)
