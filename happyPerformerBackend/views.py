@@ -2792,6 +2792,10 @@ def UpdateFamilyDetails(request):
     emp_emailid = request.session.get('emp_emailid')
     if not emp_emailid:
         return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
+    
+
+     # Fetch the Employee instance using emp_emailid
+    employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
 
     if request.method == 'GET':
         family_details = Family_details.objects.filter(emp_emailid=emp_emailid)
@@ -2816,7 +2820,7 @@ def UpdateFamilyDetails(request):
             data = json.loads(request.body)
 
             family_detail = Family_details(
-                emp_emailid=emp_emailid,
+                emp_emailid=employee,
                 F_name=data['F_name'],
                 F_gender=data['F_gender'],
                 F_dob=data['F_dob'],
@@ -2856,6 +2860,11 @@ def UpdateFamilyDetails(request):
         try:
             F_Id = request.GET.get('F_Id')
             family_detail = Family_details.objects.get(F_Id=F_Id, emp_emailid=emp_emailid)
+
+            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
+                return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
+
+
             family_detail.delete()
 
             return JsonResponse({'message': 'Family detail deleted successfully'})
