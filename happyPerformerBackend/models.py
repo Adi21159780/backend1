@@ -399,6 +399,7 @@ class Itdeclaration_oie_new(models.Model):
     Investment4 = models.CharField(max_length=50, default='Treatment of dependent with severe disability')
     Investment4_Amount = models.IntegerField(default=0)
     emp_emaiid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None)
+   
 
 class Itdeclaration_osi_new(models.Model):
     Emp_id = models.CharField(max_length=50, primary_key=True)
@@ -411,6 +412,7 @@ class Itdeclaration_osi_new(models.Model):
     Investment4 = models.CharField(max_length=50, default='Interest Earned from National Savings certificates')
     Investment4_Amount = models.IntegerField()
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None)
+    
 
 
 class Jd_table(models.Model):
@@ -861,3 +863,122 @@ class Work_exp(models.Model):
     gross_salary = models.FloatField(null=True, blank=True)
     leave_reason = models.TextField(null=True, blank=True)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid')
+
+
+
+class Itdeclaration80d_new1(models.Model):
+    Emp_id = models.CharField(max_length=50, primary_key=True)
+    Investment1 = models.CharField(max_length=100, default='Medi claim Policy for Self, Spouse, Children-80D')
+    Investment1_Amount = models.IntegerField(default=0)
+    Investment2 = models.CharField(max_length=100, default='Medi claim Policy for Self, Spouse, Children for senior citizen-80D')
+    Investment2_Amount = models.IntegerField(default=0)
+    Investment3 = models.CharField(max_length=100, default='Medi claim Policy for Parents-80D')
+    Investment3_Amount = models.IntegerField(default=0)
+    Investment4 = models.CharField(max_length=100, default='Medi claim Policy or Medical Bills for parents for senior citizen-80D')
+    Investment4_Amount = models.IntegerField(default=0)
+    Investment5 = models.CharField(max_length=100, default='Preventive health check up - 80D')
+    Investment5_Amount = models.IntegerField(default=0)
+    Investment6 = models.CharField(max_length=100, default='Preventive health check up for parents - 80D')
+    Investment6_Amount = models.IntegerField(default=0)
+    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', null=True)
+
+class Itdeclaration_oie_new1(models.Model):
+    Emp_id = models.CharField(max_length=50, primary_key=True)
+    Investment1 = models.CharField(max_length=50, default='Additional Exemptions on voluntary NPS')
+    Investment1_Amount = models.IntegerField(default=0)
+    Investment2 = models.CharField(max_length=50, default='Rajiv Gandhi Equity savings scheme')
+    Investment2_Amount = models.IntegerField(default=0)
+    Investment3 = models.CharField(max_length=50, default='Treatment of dependent with disability')
+    Investment3_Amount = models.IntegerField(default=0)
+    Investment4 = models.CharField(max_length=50, default='Treatment of dependent with severe disability')
+    Investment4_Amount = models.IntegerField(default=0)
+    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', null=True)
+
+class Itdeclaration_osi_new1(models.Model):
+    Emp_id = models.CharField(max_length=50, primary_key=True)
+    Investment1 = models.CharField(max_length=50, default='Income from other sources')
+    Investment1_Amount = models.IntegerField()
+    Investment2 = models.CharField(max_length=50, default='Interest Earned from Savings Deposit')
+    Investment2_Amount = models.IntegerField()
+    Investment3 = models.CharField(max_length=50, default='Interest Earned from Fixed Deposit')
+    Investment3_Amount = models.IntegerField()
+    Investment4 = models.CharField(max_length=50, default='Interest Earned from National Savings Certificates')
+    Investment4_Amount = models.IntegerField()
+    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', null=True)
+
+
+class Custom_letters1(models.Model):
+    seq = models.BigAutoField(primary_key=True)
+    letter_name = models.CharField(max_length=250)
+    letter_content = models.TextField(null=True, default=None)
+    alloc = models.CharField(max_length=250, null=True, default=None)
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id')
+
+    def __str__(self):
+        return self.letter_name
+    
+
+class Todotasks1(models.Model):
+    title = models.CharField(max_length=255)
+    completed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.title
+
+
+
+class AttritionYearData(models.Model):
+    year = models.IntegerField()
+    headcount = models.FloatField()
+    departures = models.IntegerField()
+    attrition_rate = models.FloatField()
+
+    def __str__(self):
+        return f"{self.year} - {self.attrition_rate}%"
+
+class AttritionDepartmentData(models.Model):
+    department = models.CharField(max_length=100)
+    year = models.IntegerField()
+    rate = models.FloatField()
+
+    def __str__(self):
+        return f"{self.department} - {self.year} - {self.rate}%"
+
+class AttritionReasonData(models.Model):
+    reason = models.CharField(max_length=100)
+    value = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.reason} - {self.value}"
+
+class AttritionGenderData(models.Model):
+    gender = models.CharField(max_length=10)
+    value = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.gender} - {self.value}"
+
+class AttritionChoiceData(models.Model):
+    choice = models.CharField(max_length=100)
+    value = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.choice} - {self.value}"
+    
+
+
+class POI(models.Model):
+    CATEGORY_CHOICES = [
+        ('80C', '80C Investments'),
+        ('80D', '80D Investments'),
+        ('other-income', 'Other Sources of Income'),
+        ('other-investments', 'Other Investments and Exemptions'),
+    ]
+
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    declared_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    actual_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    file = models.FileField(upload_to='poi_files/', null=True, blank=True)  # File field for uploaded files
+
+    def __str__(self):
+        return f"{self.category} - Declared: {self.declared_amount}, Actual: {self.actual_amount}"

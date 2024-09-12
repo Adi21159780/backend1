@@ -27,7 +27,7 @@ urlpatterns = [
     path('AddExpenses', views.AddExpenses, name='AddExpenses'),
     path('ManageExpenses/', views.ManageExpenses, name='ManageExpenses'),
     path('ExpenseReport', views.ExpenseReport, name='ExpenseReport'),
-    path('Resign', views.Resign, name='Resign'),
+    path('Resign/', views.Resign, name='Resign'),
     path('AddCourses/', views.AddCourses, name='AddCourses'),
     path('UploadMedia/', views.UploadMedia, name='UploadMedia'),
     path('UploadPdf/', views.UploadPdf, name='UploadPdf'),
@@ -53,15 +53,10 @@ urlpatterns = [
     path('EditResignation/', views.EditResignation, name='EditResignation'),
     path('EditExitClearnace/', views.EditExitClearnace, name='EditExitClearnace'),
     path('GenerateFnf/', views.GenerateFnf, name='GenerateFnf'),
-<<<<<<< Updated upstream
-    path('DisplayTraining/', views.DisplayTraining, name='DisplayTraining'),
-    path('CreateCase', views.CreateCase, name='CreateCase'),
-    path('MyCases', views.MyCases, name='MyCases'),
-=======
     path('DisplayTraining', views.DisplayTraining, name='DisplayTraining'),
     path('CreateCase/', views.CreateCase, name='CreateCase'),
     path('MyCases/', views.MyCases, name='MyCases'),
->>>>>>> Stashed changes
+
     path('UpdatePersonalDetails/', views.UpdatePersonalDetails, name='UpdatePersonalDetails'),
     path('UpdateJobDetails/', views.UpdateJobDetails, name='UpdateJobDetails'),
     path('UpdateBankDetails/', views.UpdateBankDetails, name='UpdateBankDetails'),
@@ -84,8 +79,9 @@ urlpatterns = [
     path('ViewAllEnrollments/', views.ViewAllEnrollments, name='ViewAllEnrollments'),
     path('AdhocPayments/', views.AdhocPayments, name='AdhocPayments'),
     path('LoanPayments/', views.LoanPayments, name='LoanPayments'),
-    path('LeaveEncashment/', views.LeaveEncashment, name='LeaveEncashment'),
+    path('LeaveEncashments/', views.LeaveEncashment, name='LeaveEncashment'),
     path('ViewLeaveEncashment/', views.ViewLeaveEncashment, name='ViewLeaveEncashment'),
+    # path('ViewEmployeeEncashment/<str:emp_emailid>/', views.ViewEmployeeEncashment, name='view_employee_encashment'),
     path('OffCyclePayments/', views.OffCyclePayments, name='OffCyclePayments'),
     path('BankTransferPayout/', views.BankTransferPayout, name='BankTransferPayout'),
     path('BankTransfer/', views.BankTransfer, name='BankTransfer'),
@@ -110,6 +106,21 @@ urlpatterns = [
     path('EmployeeDetails/', views.EmployeeDetails, name='EmployeeDetails'),
     path('AttendanceDetails/', views.AttendanceDetails, name='AttendanceDetails'),
     path('EmployeeMaster/', views.EmployeeMaster, name='employeemaster'),
+    path('calendar/', views.event_handler, name='event_handler'),
+    path('investment-80C/', views.investment_80C, name='investment_80c'),
+    path('investment-80D/', views.investment_80D, name='investment_80d'),
+    path('other-investments/', views.other_investments, name='other_investments'),
+    path('other-income/', views.other_income, name='other_income'),
+    path('tasks/', views.task_list, name='task_list'),
+    path('tasks/<int:task_id>/', views.task_delete, name='task_delete'),
+    path('taskss/<int:task_id>/', views.task_update, name='task_update'),
+    path('attrition/year/', views.attrition_year_data, name='attrition-year-data'),
+    path('attrition/department/', views.attrition_department_data, name='attrition-department-data'),
+    path('attrition/reasons/', views.attrition_reason_data, name='attrition-reasons-data'),
+    path('attrition/gender/', views.attrition_gender_data, name='attrition-gender-data'),
+    path('attrition/choice/', views.attrition_choice_data, name='attrition-choice-data'),
+    path('poi/', views.poi_list_create, name='poi_list_create'),  # Handles GET and POST requests
+    path('poi/<int:poi_id>/', views.poi_delete, name='poi_delete'),
 ]
 
 
