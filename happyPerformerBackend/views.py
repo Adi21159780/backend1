@@ -32,7 +32,10 @@ from django.contrib.auth.hashers import make_password
 import urllib.parse
 import logging
 from django.core.serializers import serialize
-from django.core import serializers
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+
+
 
 
 
@@ -4420,38 +4423,70 @@ def SalaryRevisionHistory(request):
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
-        sid = request.GET.get('id')
-        if not sid:
-            return JsonResponse({'error': 'Employee ID not provided'}, status=400)
+        emailid=request.GET.get('emailid')
+
+        decoded_emailid = urllib.parse.unquote(emailid)
+        print(f"Decoded email ID: {decoded_emailid}")
+
+        if not emailid:
+            return JsonResponse({'error':'Email ID not provided'}, status=400)
 
         try:
-            salaries = Salary.objects.filter(emp_emailid=sid, revision__isnull=False, revision__gt=0)
+            # Retrieve salaries based on employee email ID
+            salaries = Salary1.objects.filter(
+               emp_emailid=emailid
+            ).values(
+                    'sal_id',         
+                    'emp_emailid__emp_emailid',                     
+                    'revision',                     
+                    'effective_from',              
+                    'basic',           
+                    'hra', 
+                    'conveyance',             
+                    'da',                     
+                    'special_allowance',                      
+                    'annual_ctc',         
+                    'paymentmethod',
+                    'notes',
+                    'remarks'                                                                                       
+            ).distinct()
+
+            if not salaries:
+                return JsonResponse({'error': 'No salary details found for this employee'}, status=404)
 
             salary_list = []
             for salary in salaries:
                 salary_dict = {
-                    'emp_emailid': salary.emp_emailid,
-                    'revision_percentage': salary.revision,
-                    'effective_from': salary.effective_from,
-                    'basic': salary.basic,
-                    'hra': salary.hra,
-                    'conveyance': salary.conveyance,
-                    'da': salary.da,
-                    'allowance': salary.special_allowance,
-                    'annual_ctc': salary.annual_ctc,
-                    'payment_method': salary.paymentmethod,
-                    'notes': salary.notes,
-                    'remarks': salary.remarks
+                    'sal_id': salary['sal_id'],  # Correctly access email ID from Bank_details
+                    'emp_emailid': salary['emp_emailid__emp_emailid'],  # Correctly access email ID from Bank_details
+                    'revision': salary['revision'],
+                    'effective_from': salary['effective_from'],
+                    'basic': salary['basic'],
+                    'hra': salary['hra'],
+                    'conveyance': salary['conveyance'],
+                    'da': salary['da'],
+                    'special_allowance': salary['special_allowance'],
+                    'annual_ctc': salary['annual_ctc'],
+                    'paymentmethod': salary['paymentmethod'],
+                    'notes': salary['notes'],
+                    'remarks': salary['remarks'],
                 }
                 salary_list.append(salary_dict)
+                print("salary list: ")
+                for item in salary_list:
+                    print(item)
 
             return JsonResponse({'salaries': salary_list}, status=200)
 
-        except Salary.DoesNotExist:
-            return JsonResponse({'error': 'Salary records not found for the provided employee ID'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+
 
 
 @csrf_exempt
@@ -4462,38 +4497,106 @@ def DisplaySalaryDetails(request):
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
-        emp_emailid = request.GET.get('id')
-        decoded_emailid = urllib.parse.unquote(emp_emailid)
+        emailid=request.GET.get('emailid')
+
+        decoded_emailid = urllib.parse.unquote(emailid)
         print(f"Decoded email ID: {decoded_emailid}")
-        
 
+        if not emailid:
+            return JsonResponse({'error':'Email ID not provided'}, status=400)
         try:
-            salaries = Salary1.objects.filter(emp_emailid__emp_emailid=emp_emailid)
+           # Retrieve salaries based on employee email ID
+            salaries = Salary1.objects.filter(
+               emp_emailid=emailid
+            ).values(
+                    'emp_emailid__emp_emailid',         # Employee email ID from Bank_details model
+                    'payout_month',                     # Payout month
+                    'monthly_ctc',                      # Monthly CTC
+                    'Eligible_Deductions',              # Eligible Deductions
+                    'Yearly_Taxable_Salary',            # Yearly Taxable Salary
+                    'Total_Tax_Liability',              # Total Tax Liability
+                    'Monthly_TDS',                      # Monthly TDS
+                    'Monthly_EPF',                      # Monthly EPF
+                    'Monthly_Professional_Tax',         # Monthly Professional Tax
+                    'Net_Salary'                        # Net Salary
+            ).distinct()
 
+            if not salaries:
+                return JsonResponse({'error': 'No salary details found for this employee'}, status=404)
+            
             salary_list = []
             for salary in salaries:
                 salary_dict = {
-                    'emp_emailid': salary.emp_emailid.emp_emailid, 
-                    'payout_month': salary.payout_month,
-                    'monthly_ctc': salary.monthly_ctc,
-                    'Eligible_Deductions': salary.Eligible_Deductions,
-                    'Yearly_Taxable_Salary': salary.Yearly_Taxable_Salary,
-                    'Total_Tax_Liability': salary.Total_Tax_Liability,
-                    'Monthly_TDS': salary.Monthly_TDS,
-                    'Monthly_EPF': salary.Monthly_EPF,
-                    'Monthly_Professional_Tax': salary.Monthly_Professional_Tax,
-                    'Net_Salary': salary.Net_Salary,
+                    'emp_emailid': salary['emp_emailid__emp_emailid'],  # Correctly access email ID from Bank_details
+                    'payout_month': salary['payout_month'],
+                    'monthly_ctc': salary['monthly_ctc'],
+                    'Eligible_Deductions': salary['Eligible_Deductions'],
+                    'Yearly_Taxable_Salary': salary['Yearly_Taxable_Salary'],
+                    'Total_Tax_Liability': salary['Total_Tax_Liability'],
+                    'Monthly_TDS': salary['Monthly_TDS'],
+                    'Monthly_EPF': salary['Monthly_EPF'],
+                    'Monthly_Professional_Tax': salary['Monthly_Professional_Tax'],
+                    'Net_Salary': salary['Net_Salary'],
                 }
                 salary_list.append(salary_dict)
+                print("salary list: ")
+                for item in salary_list:
+                    print(item)
 
             return JsonResponse({'salaries': salary_list}, status=200)
 
-        except Salary.DoesNotExist:
-            return JsonResponse({'error': 'Salary records not found for the provided employee ID'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
-    
+
+
+
+
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def DisplaySalaryDetails(request):
+#     c_id = request.session.get('c_id')
+#     if not c_id:
+#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+#     if request.method == 'GET':
+#         # sid = request.GET.get('id')
+#         # if not sid:
+#         #     return JsonResponse({'error': 'Employee ID not provided'}, status=400)
+
+#         try:
+#             salaries = Salary1.objects.filter(emp_emailid__emp_emailid=sid)
+
+#             salary_list = []
+#             for salary in salaries:
+#                 salary_dict = {
+#                     'emp_emailid': salary.emp_emailid.emp_emailid,  # Accessing the email id through Bank_details
+#                     'payout_month': salary.payout_month,
+#                     'monthly_ctc': salary.monthly_ctc,
+#                     'Eligible_Deductions': salary.Eligible_Deductions,
+#                     'Yearly_Taxable_Salary': salary.Yearly_Taxable_Salary,
+#                     'Total_Tax_Liability': salary.Total_Tax_Liability,
+#                     'Monthly_TDS': salary.Monthly_TDS,
+#                     'Monthly_EPF': salary.Monthly_EPF,
+#                     'Monthly_Professional_Tax': salary.Monthly_Professional_Tax,
+#                     'Net_Salary': salary.Net_Salary,
+#                 }
+#                 salary_list.append(salary_dict)
+
+#             return JsonResponse({'salaries': salary_list}, status=200)
+
+#         except Salary1.DoesNotExist:
+#             return JsonResponse({'error': 'Salary records not found for the provided employee ID'}, status=404)
+
+#     else:
+#         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+
+
 
 
 @csrf_exempt
