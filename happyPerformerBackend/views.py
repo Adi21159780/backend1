@@ -1148,24 +1148,77 @@ def UpdateDeleteEmployee(request):
             return JsonResponse({'error': 'Employee not found or you do not have permission to delete it'}, status=404)
 
 
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def UpdateEmployeeDetails(request):
+#     company_id = request.session.get('c_id')
+#     emp_emailid = request.session.get('emp_emailid')
+
+#     if not company_id:
+#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+#     if request.method == 'GET':
+#         try:
+#             employee = Employee.objects.get(emp_emailid=emp_emailid, d_id__c_id=company_id)
+#             employee_data = {
+#                 'emp_name': employee.emp_name,
+#                 'emp_emailid': employee.emp_emailid,
+#                 'emp_phone': employee.emp_phone,
+#                 'd_id': employee.d_id.d_id,
+#                 'emp_skills': employee.emp_skills,
+#             }
+
+#             departments = Department.objects.filter(c_id=company_id).values('d_id', 'd_name')
+
+#             response_data = {
+#                 'employee_data': employee_data,
+#                 'departments': list(departments)
+#             }
+
+#             return JsonResponse(response_data, status=200)
+#         except Employee.DoesNotExist:
+#             return JsonResponse({'error': 'Employee not found or you do not have permission to access it'}, status=404)
+
+#     elif request.method == 'POST':
+#         data = json.loads(request.body)
+#         emp_name = data.get('emp_name')
+#         emp_emailid = data.get('emp_emailid')
+#         emp_phone = data.get('emp_phone')
+#         d_id = data.get('d_id')
+#         emp_skills = data.get('emp_skills')
+
+#         try:
+#             employee = Employee.objects.get(emp_emailid=emp_emailid, d_id__c_id=company_id)
+#             employee.emp_name = emp_name
+#             employee.emp_phone = emp_phone
+#             employee.d_id = Department.objects.get(d_id=d_id, c_id=company_id)
+#             employee.emp_skills = emp_skills
+#             employee.save()
+#             return JsonResponse({'success': 'Employee details updated successfully'}, status=200)
+#         except Employee.DoesNotExist:
+#             return JsonResponse({'error': 'Employee not found or you do not have permission to update it'}, status=404)
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
 def UpdateEmployeeDetails(request):
     company_id = request.session.get('c_id')
     emp_emailid = request.session.get('emp_emailid')
+    to_be_updated_employee_email = request.GET.get('emp_emailid')
+
 
     if not company_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
         try:
-            employee = Employee.objects.get(emp_emailid=emp_emailid, d_id__c_id=company_id)
+            employee = Employee.objects.get(emp_emailid=to_be_updated_employee_email or emp_emailid, d_id__c_id=company_id)
+            
             employee_data = {
                 'emp_name': employee.emp_name,
                 'emp_emailid': employee.emp_emailid,
                 'emp_phone': employee.emp_phone,
                 'd_id': employee.d_id.d_id,
                 'emp_skills': employee.emp_skills,
+                'emp_role': employee.emp_role,
             }
 
             departments = Department.objects.filter(c_id=company_id).values('d_id', 'd_name')
@@ -1184,6 +1237,7 @@ def UpdateEmployeeDetails(request):
         emp_name = data.get('emp_name')
         emp_emailid = data.get('emp_emailid')
         emp_phone = data.get('emp_phone')
+        emp_role = data.get('emp_role')
         d_id = data.get('d_id')
         emp_skills = data.get('emp_skills')
 
@@ -1191,12 +1245,15 @@ def UpdateEmployeeDetails(request):
             employee = Employee.objects.get(emp_emailid=emp_emailid, d_id__c_id=company_id)
             employee.emp_name = emp_name
             employee.emp_phone = emp_phone
+            employee.emp_role = emp_role
             employee.d_id = Department.objects.get(d_id=d_id, c_id=company_id)
             employee.emp_skills = emp_skills
             employee.save()
             return JsonResponse({'success': 'Employee details updated successfully'}, status=200)
         except Employee.DoesNotExist:
             return JsonResponse({'error': 'Employee not found or you do not have permission to update it'}, status=404)
+
+
 
 
 @csrf_exempt
