@@ -5267,148 +5267,6 @@ def job_create(request):
         return HttpResponse(status=405)  # Method Not Allowed
 
 
-# @csrf_exempt
-# def itdeclaration80c_create(request):
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         investment_fields = {
-#             "Investment1": "Investment1_Amount",
-#             "Investment2": "Investment2_Amount",
-#             "Investment3": "Investment3_Amount",
-#             "Investment4": "Investment4_Amount",
-#             "Investment5": "Investment5_Amount",
-#             "Investment6": "Investment6_Amount",
-#         }
-#         # Find which investment field is provided
-#         for investment, amount in investment_fields.items():
-#             if investment in data and amount in data:
-#                 item = ITDeclaration80c.objects.create(
-#                     Emp_id=data.get("Emp_id"),
-#                     **{investment: data[investment], amount: data[amount]}
-#                 )
-#                 return JsonResponse({"id": item.id})
-#         return JsonResponse({"error": "Invalid data provided"}, status=400)
-#     return JsonResponse({"error": "Invalid request method"}, status=400)
-
-
-# @csrf_exempt
-# def itdeclaration80d_new_create(request):
-#     if request.method == 'POST':
-#         if not request.session.get('user_id'):
-#             return JsonResponse({"error": "User not logged in"}, status=401)
-
-#         data = json.loads(request.body)
-#         logged_in_email = request.session.get('emp_emailid')
-
-#         if data.get("emp_emailid") != logged_in_email:
-#             return JsonResponse({"error": "Unauthorized action"}, status=403)
-
-#         investment_fields = {
-#             "Investment1": "Investment1_Amount",
-#             "Investment2": "Investment2_Amount",
-#             "Investment3": "Investment3_Amount",
-#             "Investment4": "Investment4_Amount",
-#             "Investment5": "Investment5_Amount",
-#             "Investment6": "Investment6_Amount",
-#         }
-        
-#         try:
-#             emp_emailid = Employee.objects.get(pk=logged_in_email)
-#         except Employee.DoesNotExist:
-#             return JsonResponse({"error": "Employee not found"}, status=404)
-
-#         # Find which investment field is provided
-#         for investment, amount in investment_fields.items():
-#             if investment in data and amount in data:
-#                 item = Itdeclaration80d_new.objects.create(
-#                     Emp_id=data.get("Emp_id"),
-#                     **{investment: data[investment], amount: data[amount]},
-#                     emp_emailid=emp_emailid
-#                 )
-#                 return JsonResponse({"Emp_id": item.Emp_id})
-                
-#         return JsonResponse({"error": "Invalid data provided"}, status=400)
-    
-#     return JsonResponse({"error": "Invalid request method"}, status=400)
-
-# @csrf_exempt
-# def itdeclaration_oie_new_create(request):
-#     if request.method == 'POST':
-#         # Check if the user is logged in
-#         if not request.session.get('user_id'):
-#             return JsonResponse({"error": "User not logged in"}, status=401)
-
-#         data = json.loads(request.body)
-#         logged_in_email = request.session.get('emp_emailid')
-
-#         # Ensure that the email in the request matches the logged-in user's email
-#         if data.get("emp_emailid") != logged_in_email:
-#             return JsonResponse({"error": "Unauthorized action"}, status=403)
-
-#         investment_fields = {
-#             "Investment1": "Investment1_Amount",
-#             "Investment2": "Investment2_Amount",
-#             "Investment3": "Investment3_Amount",
-#             "Investment4": "Investment4_Amount",
-#         }
-        
-#         try:
-#             emp_emailid = Employee.objects.get(pk=logged_in_email)
-#         except Employee.DoesNotExist:
-#             return JsonResponse({"error": "Employee not found"}, status=404)
-
-#         # Find which investment field is provided
-#         for investment, amount in investment_fields.items():
-#             if investment in data and amount in data:
-#                 item = Itdeclaration_oie_new.objects.create(
-#                     Emp_id=data.get("Emp_id"),
-#                     **{investment: data[investment], amount: data[amount]},
-#                     emp_emailid=emp_emailid
-#                 )
-#                 return JsonResponse({"Emp_id": item.Emp_id})
-
-#         return JsonResponse({"error": "Invalid data provided"}, status=400)
-    
-#     return JsonResponse({"error": "Invalid request method"}, status=400)
-
-
-# @csrf_exempt
-# def itdeclaration_osi_new_create(request):
-#     if request.method == 'POST':
-#         # Check if the user is logged in
-#         if not request.session.get('user_id'):
-#             return JsonResponse({"error": "User not logged in"}, status=401)
-
-#         data = json.loads(request.body)
-#         logged_in_email = request.session.get('emp_emailid')
-
-#         # Ensure that the email in the request matches the logged-in user's email
-#         if data.get("emp_emailid") != logged_in_email:
-#             return JsonResponse({"error": "Unauthorized action"}, status=403)
-
-#         # Retrieve the Employee instance
-#         try:
-#             emp_emailid = Employee.objects.get(emp_emailid=logged_in_email)
-#         except Employee.DoesNotExist:
-#             return JsonResponse({"error": "Employee not found"}, status=404)
-
-#         # Create the Itdeclaration_osi_new record
-#         item = Itdeclaration_osi_new.objects.create(
-#             Emp_id=data.get("Emp_id"),
-#             Investment1=data.get("Investment1", 'Income from other sources'),
-#             Investment1_Amount=data.get("Investment1_Amount", 0),
-#             Investment2=data.get("Investment2", 'Interest Earned from Savings Deposit'),
-#             Investment2_Amount=data.get("Investment2_Amount", 0),
-#             Investment3=data.get("Investment3", 'Interest Earned from Fixed Deposit'),
-#             Investment3_Amount=data.get("Investment3_Amount", 0),
-#             Investment4=data.get("Investment4", 'Interest Earned from National Savings certificates'),
-#             Investment4_Amount=data.get("Investment4_Amount", 0),
-#             emp_emailid=emp_emailid  # Assign the Employee instance here
-#         )
-#         return JsonResponse({"Emp_id": item.Emp_id})
-    
-#     return JsonResponse({"error": "Invalid request method"}, status=400)
-
 
 
 @csrf_exempt
@@ -5728,25 +5586,7 @@ def get_employee(email):
     except Employee.DoesNotExist:
         return None
 
-# @csrf_exempt
-# def investment_80C(request):
-#     emp_emailid = request.session.get('emp_emailid')
-#     if not emp_emailid:
-#         return JsonResponse({'error': 'User not logged in'}, status=401)
-    
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         employee = get_employee(emp_emailid)
-        
-#         if employee:
-#             ITDeclaration80c.objects.create(
-#                 Emp_id=employee.emp_emailid,
-#                 Investment1=data.get('type', 'Life Insurance Premium'),
-#                 Investment1_Amount=data.get('amount', 0),
-#             )
-#             return JsonResponse({"message": "Investment 80C data saved successfully"})
-#         else:
-#             return JsonResponse({"error": "Employee not found"}, status=400)
+
         
 @csrf_exempt
 def investment_80C(request):
@@ -5787,26 +5627,7 @@ def investment_80C(request):
             return JsonResponse({"error": "Employee not found"}, status=400)
 
 
-# @csrf_exempt
-# def investment_80D(request):
-#     emp_emailid = request.session.get('emp_emailid')
-#     if not emp_emailid:
-#         return JsonResponse({'error': 'User not logged in'}, status=401)
-    
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         employee = get_employee(emp_emailid)
-        
-#         if employee:
-#             Itdeclaration80d_new1.objects.create(
-#                 Emp_id=employee.emp_emailid,
-#                 Investment1=data.get('type', 'Medi claim Policy for Self,Spouse,Children-80D'),
-#                 Investment1_Amount=data.get('amount', 0),
-#                 emp_emailid=employee,
-#             )
-#             return JsonResponse({"message": "Investment 80D data saved successfully"})
-#         else:
-#             return JsonResponse({"error": "Employee not found"}, status=400)
+
 
 @csrf_exempt
 def investment_80D(request):
@@ -5848,26 +5669,7 @@ def investment_80D(request):
             return JsonResponse({"error": "Employee not found"}, status=400)
 
 
-# @csrf_exempt
-# def other_investments(request):
-#     emp_emailid = request.session.get('emp_emailid')
-#     if not emp_emailid:
-#         return JsonResponse({'error': 'User not logged in'}, status=401)
-    
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         employee = get_employee(emp_emailid)
-        
-#         if employee:
-#             Itdeclaration_oie_new1.objects.create(
-#                 Emp_id=employee.emp_emailid,
-#                 Investment1=data.get('type', 'Additional Exemptions on voluntary NPS'),
-#                 Investment1_Amount=data.get('amount', 0),
-#                 emp_emailid=employee,
-#             )
-#             return JsonResponse({"message": "Other investments data saved successfully"})
-#         else:
-#             return JsonResponse({"error": "Employee not found"}, status=400)
+
         
 @csrf_exempt
 def other_investments(request):
@@ -5909,29 +5711,7 @@ def other_investments(request):
             return JsonResponse({"error": "Employee not found"}, status=400)
        
 
-# @csrf_exempt
-# def other_income(request):
-#     emp_emailid = request.session.get('emp_emailid')
-#     if not emp_emailid:
-#         return JsonResponse({'error': 'User not logged in'}, status=401)
-    
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         employee = get_employee(emp_emailid)
-        
-#         if employee:
-#             Itdeclaration_osi_new1.objects.create(
-#                 Emp_id=employee.emp_emailid,
-#                 Investment1=data.get('income', 'Income from other sources'),
-#                 Investment1_Amount=data.get('amount', 0),
-#                 Investment2_Amount=data.get('savingsInterest', 0),
-#                 Investment3_Amount=data.get('fixedDepositInterest', 0),
-#                 Investment4_Amount=data.get('nsCertificatesInterest', 0),
-#                 emp_emailid=employee,
-#             )
-#             return JsonResponse({"message": "Other income data saved successfully"})
-#         else:
-#             return JsonResponse({"error": "Employee not found"}, status=400)
+
 @csrf_exempt
 def other_income(request):
     emp_emailid = request.session.get('emp_emailid')
