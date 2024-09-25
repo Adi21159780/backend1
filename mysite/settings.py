@@ -52,6 +52,7 @@ SESSION_COOKIE_HTTPONLY = True  # Same as 'httpOnly: true' in Express
 SESSION_COOKIE_SECURE = False  # Set to True in production
 SESSION_SAVE_EVERY_REQUEST = False  # Same as 'resave: false' in Express
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Session will not expire when the browser closes
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 # Application definition
 
@@ -174,5 +175,20 @@ EMAIL_HOST_USER = 'dummyyWork122@gmail.com'
 EMAIL_HOST_PASSWORD = 'ndkv ujlh tpfm lgrd'
 # TO get the password: Go to your google account-> Manage google account-> Search "App passwords (Security)"-> Create password.
 
+
+#added
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',
+    },
+}
 # settings.py
 EMAIL_SEPARATOR = ','
