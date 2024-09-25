@@ -24,32 +24,11 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from django.core.exceptions import ObjectDoesNotExist
-import logging
-#added
 from datetime import timedelta
 from functools import wraps
 from django.utils.decorators import method_decorator
 import random, string
 from django.contrib.auth.hashers import make_password
-from django.utils.dateparse import parse_datetime
-
-logger = logging.getLogger(__name__)
-
-# decorators
-# def role_required(allowed_roles):
-#     def decorator(view_func):
-#         @wraps(view_func)
-#         def _wrapped_view(request, *args, **kwargs):
-#             if not request.user.is_authenticated:
-#                 return JsonResponse({'error': 'Authentication required'}, status=401)
-            
-#             user_role = getattr(request.user, 'emp_role', None)
-#             if user_role not in allowed_roles:
-#                 return JsonResponse({'error': 'Permission denied'}, status=403)
-            
-#             return view_func(request, *args, **kwargs)
-#         return _wrapped_view
-#     return decorator
 import urllib.parse
 import logging
 from django.core.serializers import serialize
@@ -69,7 +48,6 @@ logger = logging.getLogger(__name__)
 def Home(request):
     return JsonResponse({"data":"Welcome to happy backsideeee hehe"})
 
-
 @csrf_exempt
 def MeetTheTeam(request):
     return JsonResponse({"data":"Meet the team here!"})
@@ -86,9 +64,9 @@ def About(request):
 def TermsAndConditions(request):
     return JsonResponse({"data":"Terms and Conditions Page reached without any issues"})
 
+
 @csrf_exempt
 def Login(request):
-    
     if request.method == 'POST':
         if request.session.get('user_id'):
             return JsonResponse({'message': 'User already logged in'}, status=200)
@@ -253,39 +231,25 @@ def Register(request):
             emp_email = data.get('empMail')
             emp_phone = data.get('empNum')
             emp_pwd = data.get('emp_pwd', 'changeme')  # Default to 'changeme' if not provided
-            emp_role = data.get('empRole', 'Super Manager')  # Default to 'Super Manager' if not provided
             emp_skills = data.get('empSkills')
 
-            # Check if the company with the exact details exists
-            try:
-                company = Company.objects.get(c_name=name, c_addr=addr, c_phone=phone)
-                created = False
-            except Company.DoesNotExist:
-                company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
-                created = True
+            # Create the company
+            new_company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
+            company_id = Company.objects.order_by('-pk').first()
 
-            # Only create departments if the company is newly created
-            if created:
-                # Create departments and get the first department's ID
-                first_dept_id = None
-                for dept_name in dept_names:
-                    # Create department with the Company instance
-                    new_dept = Department.objects.create(d_name=dept_name, c_id=company)
-                    if first_dept_id is None:
-                        first_dept_id = new_dept
-            else:
-                # If the company already exists, use the existing first department ID
-                first_dept_id = Department.objects.filter(c_id=company).first()
-                
-                if not first_dept_id:
-                    return JsonResponse({'error': 'No departments found for existing company'}, status=404)
+            # Create departments and get the first department's ID
+            first_dept_id = None
+            for dept_name in dept_names:
+                new_dept = Department.objects.create(d_name=dept_name, c_id=company_id)
+                if first_dept_id is None:
+                    first_dept_id = new_dept
 
             # Create the employee
             Employee.objects.create(
                 emp_name=emp_name,
                 emp_emailid=emp_email,
                 emp_skills=emp_skills,
-                emp_role=emp_role,
+                emp_role='Super Manager',
                 emp_phone=emp_phone,
                 emp_pwd=emp_pwd,
                 d_id=first_dept_id
@@ -298,11 +262,6 @@ def Register(request):
 
     else:
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
-
-
-
-
-
     
 # incomplete , need to complete and add session
 @csrf_exempt
@@ -970,7 +929,6 @@ def AddCourses(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
 
-    # Check if user is logged in and has a valid company ID
     if not user_id or not company_id:
         return JsonResponse({'error': 'User not logged in'}, status=401)
 
@@ -978,29 +936,21 @@ def AddCourses(request):
         try:
             course_title = request.POST.get('course_title')
             description = request.POST.get('description')
-            thumbnail = request.FILES.get('thumbnail')  # Optional field
+            thumbnail = request.FILES.get('thumbnail')
 
-            # Check for required fields
-            if not all([course_title, description]):
+            if not all([course_title, description, thumbnail]):
                 return HttpResponseBadRequest("Missing required fields")
 
-            # Fetch the company based on company_id from session
             company = get_object_or_404(Company, pk=company_id)
+            # c_name = company.c_name
 
-            # Prepare course data
-            course_data = {
-                'course_title': course_title,
-                'description': description,
-                'c_id': company,  # Ensure that the company is the same as user's company
-                'c_name': company.c_name
-            }
-
-            # Include thumbnail only if provided
-            if thumbnail:
-                course_data['thumbnail'] = thumbnail
-
-            # Create the course within the company
-            course = Courses.objects.create(**course_data)
+            course = Courses.objects.create(
+                course_title=course_title,
+                description=description,
+                thumbnail=thumbnail,
+                c_id=company,
+                c_name=company.c_name
+            )
 
             response_data = {
                 'message': 'Course added successfully',
@@ -1008,15 +958,10 @@ def AddCourses(request):
             }
 
             return JsonResponse(response_data, status=201)
-
         except Exception as e:
-            # Handle exceptions gracefully and return an error message
             return JsonResponse({'error': str(e)}, status=400)
-
     else:
-        # Only allow POST requests
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
-
 
 
 @csrf_exempt
@@ -1433,14 +1378,14 @@ def UpdateDeleteEmployee(request):
 @role_required(['HR', 'Manager', 'Super Manager'])
 def UpdateEmployeeDetails(request):
     company_id = request.session.get('c_id')
-    session_emp_emailid = request.session.get('emp_emailid')
+    emp_emailid = request.session.get('emp_emailid')
 
     if not company_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
         try:
-            employee = Employee.objects.get(emp_emailid=session_emp_emailid, d_id__c_id=company_id)
+            employee = Employee.objects.get(emp_emailid=emp_emailid, d_id__c_id=company_id)
             employee_data = {
                 'emp_name': employee.emp_name,
                 'emp_emailid': employee.emp_emailid,
@@ -1460,42 +1405,25 @@ def UpdateEmployeeDetails(request):
         except Employee.DoesNotExist:
             return JsonResponse({'error': 'Employee not found or you do not have permission to access it'}, status=404)
 
-    elif request.method == 'PATCH':
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        emp_name = data.get('emp_name')
+        emp_emailid = data.get('emp_emailid')
+        emp_phone = data.get('emp_phone')
+        d_id = data.get('d_id')
+        emp_skills = data.get('emp_skills')
+
         try:
-            data = json.loads(request.body)
-            emp_name = data.get('emp_name')
-            emp_phone = data.get('emp_phone')
-            d_id = data.get('d_id')
-            emp_skills = data.get('emp_skills')
-
-            # Fetch the employee based on the session email ID and company ID
-            employee = Employee.objects.get(emp_emailid=session_emp_emailid, d_id__c_id=company_id)
-
-            # Update only the fields provided in the PATCH request
-            if emp_name:
-                employee.emp_name = emp_name
-            if emp_phone:
-                employee.emp_phone = emp_phone
-            if d_id:
-                try:
-                    employee.d_id = Department.objects.get(d_id=d_id, c_id=company_id)
-                except Department.DoesNotExist:
-                    return JsonResponse({'error': 'Department not found for the provided company ID'}, status=404)
-            if emp_skills:
-                employee.emp_skills = emp_skills
-
+            employee = Employee.objects.get(emp_emailid=emp_emailid, d_id__c_id=company_id)
+            employee.emp_name = emp_name
+            employee.emp_phone = emp_phone
+            employee.d_id = Department.objects.get(d_id=d_id, c_id=company_id)
+            employee.emp_skills = emp_skills
             employee.save()
             return JsonResponse({'success': 'Employee details updated successfully'}, status=200)
-
         except Employee.DoesNotExist:
             return JsonResponse({'error': 'Employee not found or you do not have permission to update it'}, status=404)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
 
-    else:
-        return JsonResponse({'error': 'Unsupported method'}, status=405)
 
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
@@ -5083,24 +5011,15 @@ def EditLetterView(request):
 @role_required(['HR', 'Manager', 'Super Manager'])
 def EmployeeDetails(request):
     company_id = request.session.get('c_id')
-    logged_in_email = request.session.get('emp_emailid')  # Ensure user is logged in
 
     if not company_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
-    if not logged_in_email:  # If the user is not logged in
-        return JsonResponse({'error': 'User not logged in'}, status=401)
-
     if request.method == 'GET':
         try:
-            # Fetch departments that belong to the company
-            departments = Department.objects.filter(c_id=company_id)
-
-            # Fetch all employees in the departments of the company
-            employees = Employee.objects.filter(d_id__in=departments).values(
-                'emp_name', 'emp_emailid', 'emp_phone', 'd_id', 'emp_role'
-            )
-
+            departments = Department.objects.filter(c_id=company_id).values('d_name', 'd_id')
+            dept_id = [d['d_id'] for d in departments]
+            employees = Employee.objects.filter(d_id__in=dept_id).values('emp_name', 'emp_emailid', 'emp_phone', 'd_id', 'emp_role')
             data = {
                 'employees': list(employees)
             }
@@ -5110,13 +5029,8 @@ def EmployeeDetails(request):
 
     elif request.method == 'DELETE':
         emp_emailid = request.GET.get('emp_emailid')
-
         if not emp_emailid:
             return JsonResponse({'error': 'Employee email ID is required'}, status=400)
-
-        # if emp_emailid != logged_in_email:
-        #     return JsonResponse({'error': 'You can only delete your own account'}, status=403)
-
         try:
             employee = Employee.objects.get(emp_emailid=emp_emailid)
             employee.delete()
@@ -5130,103 +5044,42 @@ def EmployeeDetails(request):
         return JsonResponse({'error': 'Unsupported method'}, status=405)
 
 
-
 @csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
 def AttendanceDetails(request):
-    user_email = request.session.get('user_id')
-    company_id = request.session.get('c_id')
+    c_id = request.session.get('c_id')
 
-    if not user_email or not company_id:
-        return JsonResponse({'error': 'User not authenticated or company ID not found'}, status=403)
+    if not c_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
         try:
-            user = Employee.objects.get(emp_emailid=user_email)
-
-            # If user is HR, fetch attendance for all employees in their company
-            if user.emp_role == 'HR':
-                # Fetch all departments under the user's company
-                departments = Department.objects.filter(c_id=company_id).values_list('d_id', flat=True)
-                
-                # Fetch all employees under those departments
-                employees = Employee.objects.filter(d_id__in=departments)
-                
-                # Fetch attendance records for those employees
-                attendance_data = Attendance.objects.filter(emp_emailid__in=employees.values_list('emp_emailid', flat=True)).values('id', 'datetime_log', 'log_type', 'emp_emailid')
-                
-                # Create a mapping of employee emails to names
-                employee_name_mapping = {employee.emp_emailid: employee.emp_name for employee in employees}
-                
-            else:
-                # If not HR, fetch attendance only for the logged-in user
-                attendance_data = Attendance.objects.filter(emp_emailid=user_email).values('id', 'datetime_log', 'log_type', 'emp_emailid')
-                
-                # Only need the name of the logged-in user
-                employee_name_mapping = {user.emp_emailid: user.emp_name}
+            departments = Department.objects.filter(c_id=c_id).values_list('d_id', flat=True)
+            employees = Employee.objects.filter(d_id__in=departments).values('emp_emailid')
+            emp_emails = [e['emp_emailid'] for e in employees]
+            attendance_data = Attendance.objects.filter(emp_emailid__in=emp_emails).values('id','datetime_log', 'log_type', 'emp_emailid')
 
             data = []
             for attendance in attendance_data:
-                datetime_log = attendance['datetime_log']
-
-                # Parse the datetime_log if it's a string
-                if isinstance(datetime_log, str):
-                    datetime_log = parse_datetime(datetime_log)
-                    if datetime_log is None:
-                        raise ValueError(f"Invalid datetime format: {attendance['datetime_log']}")
-
-                emp_email = attendance['emp_emailid']
-                emp_name = employee_name_mapping.get(emp_email, "Unknown")  # Fetch the name from the mapping
-
                 data.append({
                     'id': attendance['id'],
-                    'emp_email': emp_email,
-                    'emp_name': emp_name,  # Include name
-                    'date': datetime_log.date(),
+                    'emp_email': attendance['emp_emailid'],
+                    'date': attendance['datetime_log'],
                     'log_type': attendance['log_type'],
-                    'time': datetime_log.time()
+                    'time': attendance['datetime_log']
                 })
-
-            # Return 'results' and 'total' to match the frontend expectation
-            return JsonResponse({
-                'results': data,
-                'total': len(data)
-            })
-
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'User does not exist'}, status=404)
-        except ValueError as ve:
-            return JsonResponse({'error': str(ve)}, status=400)
+            return JsonResponse({'data': data})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
     elif request.method == 'DELETE':
-        attendance_id = request.GET.get('id')
-        if not attendance_id:
+        id = request.GET.get('id')
+        if not id:
             return JsonResponse({'error': 'Attendance ID is required'}, status=400)
-
         try:
-            # Fetch the attendance record and ensure it belongs to the correct company
-            attendance = get_object_or_404(Attendance, id=attendance_id)
-            
-            # Debug: Print attendance details
-            print(f"Attendance Record: {attendance.id}, Employee Email: {attendance.emp_emailid.emp_emailid}")
-
-            # Fetch the employee associated with the attendance record
-            employee = get_object_or_404(Employee, emp_emailid=attendance.emp_emailid.emp_emailid)
-            
-            # Debug: Print employee details
-            print(f"Employee Found: {employee.emp_emailid}")
-
-            # Check if the employee's department belongs to the user's company
-            if employee.d_id.c_id.c_id != company_id:
-                return JsonResponse({'error': 'Unauthorized action'}, status=403)
-
-            # Delete the attendance record
+            attendance = Attendance.objects.get(id=id)
             attendance.delete()
             return JsonResponse({'message': 'Attendance record deleted successfully'})
-
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'Employee associated with attendance record not found'}, status=404)
         except Attendance.DoesNotExist:
             return JsonResponse({'error': 'Attendance record not found'}, status=404)
         except Exception as e:
@@ -5234,8 +5087,6 @@ def AttendanceDetails(request):
 
     else:
         return JsonResponse({'error': 'Unsupported method'}, status=405)
-
-
 
 
 @csrf_exempt
@@ -5255,104 +5106,6 @@ def EmployeeMaster(request):
     }
 
     return JsonResponse(data)
-    
-
-@csrf_exempt
-def social_submit_feedback_get(request):
-    if request.method == 'GET':
-        # Check if user is authenticated
-        user_email = request.session.get('user_id')
-        if not user_email:
-            return JsonResponse({'error': 'User not authenticated'}, status=403)
-
-        # Get the authenticated user's information
-        try:
-            user = Employee.objects.select_related('d_id__c_id').get(emp_emailid=user_email)
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
-
-        # Retrieve feedbacks meant for the authenticated user
-        feedbacks = Feedback.objects.filter(emp_emailid=user).values(
-            'fid', 'reason', 'from_email', 'date'
-        )
-        feedback_list = [
-            {
-                'feedback_id': fb['fid'],
-                'content': fb['reason'],
-                'sender': fb['from_email'],
-                'created_at': fb['date'],
-            }
-            for fb in feedbacks
-        ]
-        
-        return JsonResponse(feedback_list, safe=False)
-
-    else:
-        return JsonResponse({'error': 'Only GET requests are allowed'}, status=405)
-
-
-
-
-@csrf_exempt
-def social_submit_feedback_post(request):
-    if request.method == 'POST':
-        user_email = request.session.get('user_id')
-        if not user_email:
-            return JsonResponse({'error': 'User not authenticated'}, status=403)
-
-        # Get the authenticated user's company
-        try:
-            user = Employee.objects.select_related('d_id__c_id').get(emp_emailid=user_email)
-            user_company = user.d_id.c_id
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
-
-        try:
-            data = json.loads(request.body)
-            emp_emailid = data.get('emp_emailid')
-            skill = data.get('skill')
-            from_email = user_email
-            reason = data.get('reason')
-
-            if not emp_emailid or not skill or not from_email or not reason:
-                return JsonResponse({'error': 'All fields are required'}, status=400)
-
-            # Ensure the employee exists and belongs to the same company
-            try:
-                employee = Employee.objects.select_related('d_id__c_id').get(emp_emailid=emp_emailid, d_id__c_id=user_company)
-            except Employee.DoesNotExist:
-                return JsonResponse({'error': 'Employee does not exist or does not belong to your company'}, status=404)
-
-            # Save feedback
-            feedback = Feedback(
-                emp_emailid=employee,
-                skill=skill,
-                from_email=from_email,
-                reason=reason
-            )
-            feedback.save()
-
-            # Retrieve feedbacks only for employees in the same company
-            # Step 1: Get all employee email IDs in the user's company
-            employee_emails = Employee.objects.filter(d_id__c_id=user_company).values_list('emp_emailid', flat=True)
-
-            # Step 2: Filter feedbacks using the __in lookup
-            feedbacks = Feedback.objects.filter(emp_emailid__in=employee_emails).values(
-                'emp_emailid__emp_emailid', 'skill', 'from_email', 'reason', 'date'
-            )
-
-            feedback_list = list(feedbacks)
-
-            return JsonResponse({'message': 'Feedback submitted successfully', 'feedbacks': feedback_list}, status=201)
-
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-        except TypeError:
-            return JsonResponse({'error': 'TypeError occurred'}, status=500)
-        except Exception as e:
-            return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
-    else:
-        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
 
 
 
@@ -5516,9 +5269,7 @@ def job_create(request):
 
 
 
-
-
-@csrf_exempt       
+@csrf_exempt
 def jd_create(request):
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -5557,90 +5308,6 @@ def jd_detail(request, jd_id):
         user_email = request.session.get('user_id')
         if not user_email:
             return JsonResponse({'error': 'User not authenticated'}, status=403)
-
-        # Get the authenticated user's company
-        try:
-            user = Employee.objects.select_related('d_id__c_id').get(emp_emailid=user_email)
-            user_company = user.d_id.c_id
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
-
-        # Retrieve all employee details for employees in the same company
-        employees = Employee.objects.filter(d_id__c_id=user_company).values(
-            'emp_emailid', 'd_id'
-        )
-        employee_list = [{'id': emp['d_id'], 'name': emp['emp_emailid']} for emp in employees]
-        
-        return JsonResponse(employee_list, safe=False)
-
-    else:
-        return JsonResponse({'error': 'Only GET requests are allowed'}, status=405)
-
-
-@csrf_exempt
-def create_quiz(request):
-    if request.method == 'POST':
-        # Check if user is authenticated
-        user_email = request.session.get('user_id')
-        if not user_email:
-            return JsonResponse({'error': 'User not authenticated'}, status=403)
-
-        try:
-            # Retrieve the user from the Employee model
-            user = Employee.objects.get(emp_emailid=user_email)
-
-            # Check if the user has the required role
-            if user.emp_role not in ['HR', 'Manager','Super Manager']:
-                return JsonResponse({'error': 'You do not have permission to create a quiz'}, status=403)
-
-            # Load the request body
-            data = json.loads(request.body)
-            quiz_title = data.get('quizTitle')
-            course = data.get('course')
-            total_questions = data.get('totalQuestions')
-            marks_for_correct_answer = data.get('marksForCorrectAnswer')
-            marks_for_wrong_answer = data.get('marksForWrongAnswer')
-            total_marks = int(data.get('marksObtained', 0))
-            passing_marks = data.get('passingMarks')
-            time_limit = data.get('timeLimit')
-
-            # Create the quiz record
-            quiz = Quiz(
-                title=quiz_title,
-                course_title=course,
-                total=total_questions,
-                correct=marks_for_correct_answer,
-                wrong=marks_for_wrong_answer,
-                passing=passing_marks,
-                total_marks=total_marks,
-                time=time_limit,
-                status='active',  # or any default status you want to set
-            )
-            quiz.save()
-
-            return JsonResponse({'message': 'Quiz created successfully'}, status=201)
-
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'User does not exist'}, status=404)
-        
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
-
-    else:
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
-    
-
-@csrf_exempt
-def allquiz(request):
-    if request.method == 'GET':
-        user_email = request.session.get('user_id')
-        if not user_email:
-            return JsonResponse({'error': 'User not authenticated'}, status=403)
-        
-        quizzes = Quiz.objects.all()
-        quiz_list = quizzes.values('id', 'title', 'course_title', 'total', 'total_marks', 'passing', 'time', 'status')
-        return JsonResponse(list(quiz_list), safe=False)
-    
 
         # Retrieve the Job Description by jd_id
         job_desc = get_object_or_404(Job_desc, job_desc_id=jd_id)
@@ -6142,218 +5809,6 @@ def markattendance(request):
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-
-#Settings views
-@csrf_exempt
-@require_http_methods(["POST"])
-def update_settings_account(request):
-    try:
-        user_email = request.session.get('user_id')
-        if not user_email:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
-
-        new_name = request.POST.get('name')
-        new_phone = request.POST.get('phone')
-        new_skills = request.POST.get('skills')
-        new_photo = request.FILES.get('photo')  # Get the uploaded file
-
-        if not any([new_name, new_phone, new_skills, new_photo]):
-            return JsonResponse({'error': 'No data provided for update'}, status=400)
-
-        try:
-            employee = Employee.objects.get(emp_emailid=user_email)
-
-            should_save = False
-            if new_name:
-                employee.emp_name = new_name
-                should_save = True
-            if new_phone:
-                employee.emp_phone = new_phone
-                should_save = True
-            if new_skills:
-                employee.emp_skills = new_skills
-                should_save = True
-            if new_photo:
-                employee.emp_photo = new_photo  # Assuming you have a field named 'emp_photo'
-                should_save = True
-
-            if should_save:
-                employee.save()
-                return JsonResponse({'message': 'Account details updated successfully'}, status=200)
-            else:
-                return JsonResponse({'message': 'No changes made'}, status=200)
-
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'Employee not found'}, status=404)
-
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
-        return JsonResponse({'error': 'An internal error occurred'}, status=500)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def update_settings_password(request):
-    try:
-        # Check if the user is logged in
-        user_email = request.session.get('user_id')
-        if not user_email:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
-
-        # Extract form data
-        old_password = request.POST.get('oldPassword')  # match with frontend
-        new_password = request.POST.get('newPassword')  # match with frontend
-        new_confirm_password = request.POST.get('confirmPassword')  # match with frontend
-
-        # Validate password fields
-        if not old_password:
-            return JsonResponse({'error': 'Old password is required to change password'}, status=400)
-        if not new_password or not new_confirm_password:
-            return JsonResponse({'error': 'New password and confirm password are required'}, status=400)
-
-        try:
-            # Fetch the employee object using the email from the session
-            employee = Employee.objects.get(emp_emailid=user_email)
-
-            if employee.emp_pwd == old_password:  # Check if the old password matches
-                if new_password == new_confirm_password:
-                    employee.emp_pwd = new_password  # Update to the new password (plain text storage)
-                    employee.save()
-                    return JsonResponse({'message': 'Password updated successfully'}, status=200)
-                else:
-                    return JsonResponse({'error': 'Passwords do not match'}, status=400)
-            else:
-                return JsonResponse({'error': 'Old password is incorrect'}, status=400)
-
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'Employee not found'}, status=404)
-
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
-        return JsonResponse({'error': 'An internal error occurred'}, status=500)
-
-
-    
-
-def generate_otp():
-    return ''.join(random.choices(string.digits, k=6))
-
-@csrf_exempt
-def send_otp(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        email = data.get('email')
-
-        try:
-            # Verify if the email exists in the Employee model
-            user = Employee.objects.get(emp_emailid=email)
-            
-            # Generate OTP
-            otp = generate_otp()
-
-            # Check if an OTP record already exists for the given email
-            otp_record, created = OTPVerification.objects.update_or_create(
-                emp_emailid=email,
-                defaults={
-                    'otp': otp,
-                    'created_at': timezone.now()
-                    }
-                
-            )
-            
-            # Send the OTP via email
-            send_mail(
-                'Your OTP for Password Reset',
-                f'Your OTP is: {otp}',
-                settings.EMAIL_HOST_USER,
-                [email],
-                fail_silently=False,
-            )
-            
-            return JsonResponse({'message': 'OTP sent successfully!'}, status=200)
-        
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'Email not found'}, status=404)
-    
-    return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
-
-@csrf_exempt
-def verify_otp(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        email = data.get('email')
-        otp = data.get('otp')
-
-        try:
-            # Fetch the OTPVerification object
-            otp_record = OTPVerification.objects.get(emp_emailid=email, otp=otp)
-            
-            # Get the current time
-            now = timezone.now()
-            created_at = otp_record.created_at
-            
-            # Set the OTP expiration time (e.g., 10 minutes from creation)
-            expiration_time = created_at + timedelta(minutes=10)
-            
-            # Debugging information
-            print(f"Current Time: {now}")
-            print(f"Created At: {created_at}")
-            print(f"Expiration Time: {expiration_time}")
-
-            # Check if the OTP is still valid
-            if now > expiration_time:
-                return JsonResponse({'error': 'OTP expired'}, status=400)
-            
-            # OTP is valid; allow the user to reset their password
-            return JsonResponse({'message': 'OTP verified successfully'}, status=200)
-        
-        except OTPVerification.DoesNotExist:
-            return JsonResponse({'error': 'Invalid OTP'}, status=400)
-    
-    return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
-
-
-@csrf_exempt
-def reset_password(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        email = data.get('email')
-        password = data.get('password')  # Update this line
-
-        try:
-            user = Employee.objects.get(emp_emailid=email)
-
-            if user.emp_pwd == password:
-                return JsonResponse({'error': 'New password cannot be the same as the current password'}, status=400)
-
-            user.emp_pwd = password
-            user.save()
-            return JsonResponse({'message': 'Password reset successful'}, status=200)
-
-        except Employee.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
-
-    return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
-
-
-# @csrf_exempt
-# with hashing
-# def reset_password(request):
-#     if request.method == 'POST':
-#         data = json.loads(request.body)
-#         email = data.get('email')
-#         new_password = data.get('new_password')
-
-#         try:
-#             user = Employee.objects.get(emp_emailid=email)
-#             user.emp_pwd = make_password(new_password)
-#             user.save()
-#             return JsonResponse({'message': 'Password reset successful'}, status=200)
-        
-#         except Employee.DoesNotExist:
-#             return JsonResponse({'error': 'User not found'}, status=404)
-    
-#     return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
     
 
 
