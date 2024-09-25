@@ -35,6 +35,7 @@ class Employee(models.Model):
     likes = models.CharField(max_length=10000, default='0')
     d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id')
 
+
 class Adhaar(models.Model):
     A_Id = models.BigAutoField(primary_key=True)
     adhaar_no = models.BigIntegerField()
@@ -311,6 +312,7 @@ class Feedback(models.Model):
     from_email = models.CharField(max_length=30)
     reason = models.CharField(max_length=100)
     date = models.DateTimeField(auto_now_add=True)
+
 
 class Files(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -654,12 +656,13 @@ class Questions_static(models.Model):
     sn = models.IntegerField()
 
 class Quiz(models.Model):
-    id = models.IntegerField(primary_key=True)
+    #id = models.IntegerField(primary_key=True)
     eid = models.TextField()
     title = models.CharField(max_length=100)
     course_title = models.CharField(max_length=100)
     correct = models.IntegerField()
     wrong = models.IntegerField()
+    total_marks = models.IntegerField(default=0)
     passing = models.IntegerField()
     total = models.IntegerField()
     time = models.BigIntegerField()
