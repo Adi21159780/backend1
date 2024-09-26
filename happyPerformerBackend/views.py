@@ -5723,7 +5723,6 @@ def AttemptQuiz(request, quiz_id=None):
 
 
 
-
 @csrf_exempt
 def QuizResults(request, quiz_id):
     # Check if the request method is GET
@@ -5739,42 +5738,35 @@ def QuizResults(request, quiz_id):
         # Fetch the quiz details
         quiz = attempt.quiz
         
-        # Get the chosen options
-        total_attempts = attempt.chosen_options  # Assuming this contains question_id -> chosen_option_id
-        total_questions = len(total_attempts)  # Total number of questions attempted
-        
-        # Count correct and wrong answers
-        total_correct = 0
-        for question_id, chosen_option in total_attempts.items():
-            try:
-                option = Option.objects.get(id=chosen_option)
-                if option.is_correct:
-                    total_correct += 1
-            except Option.DoesNotExist:
-                continue  # Handle cases where the chosen option does not exist
-
-        total_wrong = total_questions - total_correct
+        # Use pre-calculated total_correct and total_wrong from the database
+        total_correct = attempt.total_correct
+        total_wrong = attempt.total_wrong
         
         # Get the negative mark deduction from the quiz
         negative_mark_deduction = quiz.wrong  # Assuming 'wrong' is the negative marking for each incorrect answer
         
-        # Calculate total marks and final score after applying negative marks
+        # Calculate total negative marks
         negative_marks = total_wrong * negative_mark_deduction
+        
+        # Calculate final score after applying negative marks
         final_score = attempt.score - negative_marks  # Assuming attempt.score is the score before deductions
         
         # Ensure final score does not drop below zero
         final_score = max(final_score, 0)
 
+        # Convert time_taken (in seconds) to hh:mm:ss format
+        time_taken_seconds = attempt.time_taken
+        time_taken_str = str(timedelta(seconds=time_taken_seconds))  # Use timedelta from the datetime module
+
         response_data = {
             'quiz_title': quiz.title,
             'full_marks': quiz.total_marks,
-            'obtained_marks': final_score,  # Show final score after negative marks
-            'negative_marks': negative_marks,  # Show total negative marks deducted
-            'time_taken': attempt.time_taken,
+            'obtained_marks': f"{final_score:.2f}",  # Ensure obtained marks is in 2 decimal places
+            'negative_marks': f"{negative_marks:.2f}",  # Ensure negative marks is in 2 decimal places
+            'time_taken': time_taken_str,  # Display the time in hh:mm:ss format
             'is_passed': final_score >= quiz.passing  # Check if passed based on final score
         }
 
         return JsonResponse(response_data, status=200)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
-
