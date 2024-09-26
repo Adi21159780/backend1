@@ -51,6 +51,7 @@ import os
 #         return _wrapped_view
 #     return decorator
 
+from django.core.files.storage import default_storage
 
 @csrf_exempt
 def Home(request):
@@ -514,36 +515,89 @@ def FAQsView(request):
 
 @csrf_exempt
 def ApplyLeave(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
+        # Step 1: Fetch Employee Data from Session
+        emp_email = request.session.get('emp_emailid')
+        if not emp_email:
+            print("User not authenticated. No email in session.")
+            return JsonResponse({'error': 'User not authenticated'}, status=401)
+
+        # Step 2: Fetch Employee's Leave Details
+        try:
+            employee = Employee.objects.get(emp_emailid=emp_email)
+            print(f"Employee found: {employee}")
+        except Employee.DoesNotExist:
+            print(f"Employee with email {emp_email} not found.")
+            return JsonResponse({'error': 'Employee not found'}, status=404)
+
+        # Step 3: Fetch and Format Leave Data
+        try:
+            leaves = Tblleaves.objects.filter(emp_emailid=employee)
+            leave_data = [
+                {
+                    'type': leave.LeaveType.LeaveType,
+                    'fromDate': leave.FromDate,
+                    'toDate': leave.ToDate,
+                    'days': leave.Days,
+                    'description': leave.Description,
+                    'status': leave.Status,
+                }
+                for leave in leaves
+            ]
+            return JsonResponse(leave_data, safe=False, status=200)
+        except Exception as e:
+            print(f"Error fetching leave data: {e}")
+            return JsonResponse({'error': 'Error fetching leave data'}, status=500)
+
+    elif request.method == 'POST':
+        # Step 1: Parse JSON Data
         try:
             data = json.loads(request.body)
+            print("Received data:", data)  # Debugging: Log received data
             leavetype = data.get('leaveType')
             fromdate = data.get('fromDate')
             todate = data.get('toDate')
             description = data.get('leaveDescription')
         except json.JSONDecodeError:
+            print("Invalid JSON data received.")
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
+        # Step 2: Validate Required Fields
+        if not all([leavetype, fromdate, todate, description]):
+            print("Missing required fields in the request.")
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+        # Step 3: Fetch Employee Data
         emp_email = request.session.get('emp_emailid')
         if not emp_email:
+            print("User not authenticated. No email in session.")
             return JsonResponse({'error': 'User not authenticated'}, status=401)
 
         try:
             employee = Employee.objects.get(emp_emailid=emp_email)
+            print(f"Employee found: {employee}")
         except Employee.DoesNotExist:
+            print(f"Employee with email {emp_email} not found.")
             return JsonResponse({'error': 'Employee not found'}, status=404)
 
+        # Step 4: Validate Dates
         try:
             date1 = datetime.strptime(fromdate, "%Y-%m-%d")
             date2 = datetime.strptime(todate, "%Y-%m-%d")
+            if date1 > date2:
+                return JsonResponse({'error': 'From date cannot be after To date'}, status=400)
             days = (date2 - date1).days + 1  # Including both start and end date
+            print(f"Calculated days: {days}")
         except ValueError:
+            print("Invalid date format received.")
             return JsonResponse({'error': 'Invalid date format'}, status=400)
 
+        # Step 5: Fetch Leave Type
         try:
             leave_type = Leavetype.objects.get(LeaveType__iexact=leavetype)
         except Leavetype.DoesNotExist:
-            return JsonResponse({'error': 'Leave type does not exist'}, status=400)
+            print(f"Leave type '{leavetype}' does not exist.")
+            return JsonResponse({'error': f"Leave type '{leavetype}' does not exist"}, status=400)
 
         # Ensure Leavecounttemp record exists or create one with default values
         leave_count, created = Leavecounttemp.objects.get_or_create(
@@ -556,23 +610,32 @@ def ApplyLeave(request):
             }
         )
 
+        # Step 7: Calculate Remaining Leaves
         leave_limit_field = leavetype.lower() + 'leave'
         leave_limit = getattr(leave_count, leave_limit_field, 0)
+        print(f"Leave limit: {leave_limit} for leave type: {leave_limit_field}")
 
         final = leave_type.Limit - leave_limit - days
         if final < 0:
+            print("Exceeding leave limits.")
             return JsonResponse({'error': 'Exceeding leave limits'}, status=400)
 
-        leave = Tblleaves.objects.create(
-            LeaveType=leave_type,
-            FromDate=fromdate,
-            ToDate=todate,
-            Days=days,
-            Description=description,
-            Status=0,
-            IsRead=0,
-            emp_emailid=employee
-        )
+        # Step 8: Create Leave Entry
+        try:
+            leave = Tblleaves.objects.create(
+                LeaveType=leave_type,
+                FromDate=fromdate,
+                ToDate=todate,
+                Days=days,
+                Description=description,
+                Status=0,
+                IsRead=0,
+                emp_emailid=employee
+            )
+            print("Leave successfully created.")
+        except Exception as e:
+            print(f"Error creating leave entry: {e}")
+            return JsonResponse({'error': 'Error creating leave entry'}, status=500)
 
         return JsonResponse({'message': 'Leave submitted successfully'}, status=200)
 
@@ -1211,7 +1274,7 @@ def CeoHrAnnouncements(request):
 
     if request.method == 'POST':
         sender = request.POST['email']
-        cc = request.POST.get('cc', '')
+        cc = request.POST.get('cc', '').split(',') if request.POST.get('cc') else []  # Split and format CC
         departments = request.POST.getlist('dept')
         subject = request.POST['subject']
         message = request.POST['msg']
@@ -1219,7 +1282,7 @@ def CeoHrAnnouncements(request):
         send_to_all = 'check' in request.POST and request.POST['check'] == 'yes'
 
         emails_sent = 0
-        separator = settings.EMAIL_SEPARATOR
+        separator = getattr(settings, 'EMAIL_SEPARATOR', ',')  # Ensure EMAIL_SEPARATOR has a default value
 
         try:
             if send_to_all:
@@ -1233,7 +1296,7 @@ def CeoHrAnnouncements(request):
                     body=message,
                     from_email=sender,
                     to=[employee.emp_emailid],
-                    cc=[cc] if cc else None,
+                    cc=cc,  # Use a list directly
                 )
 
                 for file in files:
@@ -1245,7 +1308,9 @@ def CeoHrAnnouncements(request):
             return JsonResponse({'success': f'Total {emails_sent} emails sent successfully'}, status=200)
 
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            # Improved exception handling and logging
+            print(f"Error sending emails: {str(e)}")  # Use logging in production
+            return JsonResponse({'error': 'An error occurred while sending emails. Check server logs for details.'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
@@ -3281,19 +3346,20 @@ def CompensationPayrollCases(request):
 
 
 # incomplete pending uncomment , need to complete this (Employee Jobs)
-# @csrf_exempt
-# @role_required(['HR', 'Manager', 'Super Manager'])
-# def ManagerRating(request):
-#     c_id = request.session.get('c_id')
-#     if not c_id:
-#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def ManagerRating(request):
+    c_id = request.session.get('c_id')
+    if not c_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
-#     if request.method == 'GET':
-#         # Tasks
-#         tasks_data = Tasks.objects.filter(emp_emailid__d_id__c_id=c_id).values('emp_emailid', 'selfratings', 'status', 'tid__description' )
-#         print(tasks_data)
-#         tasks = list(tasks_data)
-#         return JsonResponse(tasks_data, safe=False)
+    if request.method == 'GET':
+        # Tasks
+        tasks_data = Tasks.objects.filter(emp_emailid__d_id__c_id=c_id).values('emp_emailid', 'selfratings', 'status', 'tid__description' )
+        print(tasks_data)
+        tasks = list(tasks_data)
+        return JsonResponse(tasks_data, safe=False)
+
 
 @csrf_exempt
 def FAQManagement(request):
@@ -3326,8 +3392,20 @@ def FAQManagement(request):
         except Exception as e:
             return HttpResponseBadRequest({'error': str(e)})
 
+    elif request.method == 'DELETE':
+        try:
+            faq_id = request.GET.get('faq_id')  # Retrieve the faq_id from query parameters
+            faq = Faqs.objects.get(faq_id=faq_id)  # Fetch the FAQ object
+            faq.delete()  # Delete the FAQ object
+            return JsonResponse({'message': 'FAQ deleted successfully.'}, status=200)
+        except Faqs.DoesNotExist:
+            return JsonResponse({'error': 'FAQ not found.'}, status=404)
+        except Exception as e:
+            return HttpResponseBadRequest({'error': str(e)})
+
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
+
 
 
 @csrf_exempt
@@ -3492,6 +3570,41 @@ def LoanPayments(request):
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
 
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def LeaveEncashment(request):
+#     user_id = request.session.get('user_id')
+#     company_id = request.session.get('c_id')
+
+#     if not user_id or not company_id:
+#         return JsonResponse({'error': 'User not logged in'}, status=401)
+
+#     if request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#             employee = Employee.objects.get(emp_emailid=user_id)
+
+#             leave_encashment = Leave_Encashment(
+#                 txndt = data.get('txndt'),
+#                 refn = data.get('refn'),
+#                 effdt = data.get('effdt'),
+#                 emp = data.get('emp'),
+#                 type = data.get('type'),
+#                 blnc = data.get('blnc'),
+#                 pdays = data.get('pdays'),
+#                 sal = data.get('sal'),
+#                 emp_emailid = employee
+#             )
+#             leave_encashment.save()
+
+#             return JsonResponse({"message": "Leave inserted successfully"}, status=201)
+#         except Employee.DoesNotExist:
+#             return JsonResponse({"error": "Employee not found"}, status=404)
+#         except Exception as e:
+#             return JsonResponse({"error": str(e)}, status=400)
+#     else:
+#         return JsonResponse({"error": "Invalid request method"}, status=405)
+
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
 def LeaveEncashment(request):
@@ -3507,15 +3620,15 @@ def LeaveEncashment(request):
             employee = Employee.objects.get(emp_emailid=user_id)
 
             leave_encashment = Leave_Encashment(
-                txndt = data.get('txndt'),
-                refn = data.get('refn'),
-                effdt = data.get('effdt'),
-                emp = data.get('emp'),
-                type = data.get('type'),
-                blnc = data.get('blnc'),
-                pdays = data.get('pdays'),
-                sal = data.get('sal'),
-                emp_emailid = employee
+                txndt=data.get('txndate'),  # Changed to match the frontend
+                refn=data.get('referencenum'),
+                effdt=data.get('effectivedate'),
+                emp=data.get('empname'),
+                type=data.get('leaveType'),
+                blnc=data.get('leavesallowed'),
+                pdays=data.get('totalleaves'),
+                sal=data.get('salary'),
+                emp_emailid=employee
             )
             leave_encashment.save()
 
@@ -3524,6 +3637,19 @@ def LeaveEncashment(request):
             return JsonResponse({"error": "Employee not found"}, status=404)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
+
+    elif request.method == 'GET':
+        # Fetch the leave encashment data for the logged-in user
+        try:
+            employee = Employee.objects.get(emp_emailid=user_id)
+            leave_encashments = Leave_Encashment.objects.filter(emp_emailid=employee)
+            data = list(leave_encashments.values())
+            return JsonResponse(data, safe=False)
+        except Employee.DoesNotExist:
+            return JsonResponse({"error": "Employee not found"}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+    
     else:
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -3531,19 +3657,36 @@ def LeaveEncashment(request):
 @role_required(['HR', 'Manager', 'Super Manager'])
 @csrf_exempt
 def ViewLeaveEncashment(request):
-    user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
 
-    if not user_id or not company_id:
-        return JsonResponse({'error': 'User not logged in'}, status=401)
+    if not company_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
         try:
-            leave_encashment_data = Leave_Encashment.objects.filter(emp_emailid__d_id__c_id=company_id).values('emp', 'blnc', 'pdays', 'enclve')
-            leave_encashment_list = list(leave_encashment_data)
-            return JsonResponse(leave_encashment_list, safe=False)
+            leave_encashments = Leave_Encashment.objects.filter(
+                emp_emailid__d_id__c_id=company_id
+            ).values(
+                'emp',
+                'emp_emailid__emp_name',
+                'blnc',
+                'pdays',
+                'enclve'
+            ).distinct('emp')
+            
+            employee_list = [
+                {
+                    'emp': item['emp'],
+                    'name': item['emp'],
+                    'totalLeaves': item['blnc'],
+                    'leavesTaken': item['pdays'],
+                    'encashment': item['enclve']
+                } for item in leave_encashments
+            ]
+            
+            return JsonResponse({'employees': employee_list}, safe=False)
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+            return JsonResponse({"error": str(e)}, status=500)
     else:
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -3912,7 +4055,7 @@ def AddSalary(request):
             special_allowance = monthly_ctc - (hra + conveyance + da + basic)
 
             annual_taxable = annual_ctc - eligible_deductions
-            tax_liability = TaxCalculationToAddSalary(age, annual_taxable)
+            tax_liability = tax_calculation_to_add_salary(age, annual_taxable)
 
             monthly_tds = tax_liability / 12
             monthly_epf = basic * 0.12
@@ -4155,31 +4298,57 @@ def CustomForms(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+    # elif request.method == 'POST':
+    #     data = json.loads(request.body)
+    #     form_name = data.get('newFormName')
+    #     if not form_name:
+    #         return JsonResponse({'error': 'Form name is required'}, status=400)
+
+    #     try:
+    #         formatted_form_name = form_name.replace(' ', '_').lower()
+    #         response_table_name = f"resp_{c_id}{formatted_form_name}"
+
+    #         with connection.cursor() as cursor:
+    #             cursor.execute(f"""
+    #                 CREATE TABLE IF NOT EXISTS "{response_table_name}" (
+    #                     "emp_name" VARCHAR(255) PRIMARY KEY
+    #                 );
+    #             """)
+
+    #         if Custom_forms.objects.filter(c_id=company_id, form_name=formatted_form_name).exists():
+    #             return JsonResponse({'error': 'Form name already exists'}, status=400)
+
+    #         new_form = Custom_forms(c_id=c_id, form_name=formatted_form_name)
+    #         new_form.save()
+    #         return JsonResponse({'message': 'Form created successfully'})
+    #     except Exception as e:
+    #         return JsonResponse({'error': str(e)}, status=500)
+
     elif request.method == 'POST':
-        data = json.loads(request.body)
-        form_name = data.get('newFormName')
-        if not form_name:
-            return JsonResponse({'error': 'Form name is required'}, status=400)
-
         try:
-            formatted_form_name = form_name.replace(' ', '_').lower()
-            response_table_name = f"resp_{c_id}{formatted_form_name}"
+            data = json.loads(request.body)
+            form_name = data.get('newFormName')
+            alloc = data.get('alloc', None)
 
-            with connection.cursor() as cursor:
-                cursor.execute(f"""
-                    CREATE TABLE IF NOT EXISTS "{response_table_name}" (
-                        "emp_name" VARCHAR(255) PRIMARY KEY
-                    );
-                """)
+            if not form_name:
+                return JsonResponse({'error': 'Form name is required'}, status=400)
 
-            if Custom_forms.objects.filter(c_id=company_id, form_name=formatted_form_name).exists():
-                return JsonResponse({'error': 'Form name already exists'}, status=400)
+            # Create the Custom_forms instance using the company_id from the session
+            custom_form = Custom_forms(
+                form_name=form_name,
+                alloc=alloc,
+                c_id=c_id  # Use the company instance obtained from the session
+            )
+            custom_form.save()
 
-            new_form = Custom_forms(c_id=c_id, form_name=formatted_form_name)
-            new_form.save()
-            return JsonResponse({'message': 'Form created successfully'})
+            return JsonResponse({'message': 'Custom form created successfully', 'form_id': custom_form.seq}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+        # return JsonResponse({'error': 'Invalid request method'}, status=405)
 
     elif request.method == 'DELETE':
         form_name = request.GET.get('form_name')
@@ -4241,7 +4410,6 @@ def EditFormView(request):
         return JsonResponse({'questions': list(questions), 'employees': list(employees)})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
 
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
@@ -4433,11 +4601,13 @@ def CustomLetter(request):
                 return JsonResponse({'error': 'Letter name already exists!'}, status=400)
 
             Custom_letters.objects.create(letter_name=new_letter_name, c_id=c_id)
-            return JsonResponse({'success': 'Letter created successfully'}, status=201)
+            return JsonResponse({ 'message': 'Letter deleted successfully'}, status=201)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
         except Exception as e:
             return JsonResponse({'error': f'An unexpected error occurred: {e}'}, status=500)
+    
+
 
     elif request.method == 'DELETE':
         this_letter = request.GET.get('letter_name')
@@ -4458,7 +4628,6 @@ def CustomLetter(request):
 
     else:
         return JsonResponse({'error': 'Unsupported method'}, status=405)
-
 
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
@@ -4496,51 +4665,28 @@ def EditLetterView(request):
 
     elif request.method == 'POST':
         data = json.loads(request.body)
-        allocated_employee_emails = data.get('allocatedEmployeeEmails')
         this_letter = data.get('thisLetter')
+        letter_content = data.get('letterContent')
 
-        if not allocated_employee_emails or not this_letter:
-            return JsonResponse({'error': 'Both employee emails and letter name are required'}, status=400)
+        if not this_letter or not letter_content:
+            return JsonResponse({'error': 'Letter name and content are required'}, status=400)
 
         this_letter = this_letter.replace(' ', '_').lower()
-        allocated_employee_str = ', '.join(allocated_employee_emails)
 
         try:
             custom_letter = get_object_or_404(Custom_letters, letter_name=this_letter, c_id=company)
-            custom_letter.alloc = allocated_employee_str
+            custom_letter.letter_content = letter_content
             custom_letter.save()
 
-            letter_content = custom_letter.letter_content
-            allEmailsArr = allocated_employee_emails
-            personalized_contents = []
+            return JsonResponse({'success': 'Letter updated successfully'}, status=201)
 
-            for email in allEmailsArr:
-                emp = get_object_or_404(Employee, emp_emailid=email)
-                to_name = emp.emp_name
-                personalized_content = letter_content.replace("~NAME~", to_name)
-                personalized_contents.append(personalized_content)
-
-            combined_content = "\n\n".join(personalized_contents)
-            subject = custom_letter.letter_name.replace('_', ' ').title()
-
-            send_mail(
-                subject,
-                combined_content,
-                employee.emp_emailid,
-                allEmailsArr,
-                fail_silently=False,
-                html_message=combined_content
-            )
-
-            return JsonResponse({'success': 'Letters allocated and email sent successfully'}, status=201)
-
+        except Custom_letters.DoesNotExist:
+            return JsonResponse({'error': f'Letter "{this_letter}" not found'}, status=404)
         except Exception as e:
-            return JsonResponse({'error': f'An unexpected error occurred: {e}'}, status=500)
+            return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
 
     else:
         return JsonResponse({'error': 'Unsupported method'}, status=405)
-
-
 
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
@@ -5273,3 +5419,301 @@ def employee_details(request, emp_emailid):
     
 #     return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
 
+
+# Calender
+@csrf_exempt
+def event_handler(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'POST':
+        # Add new event
+        data = json.loads(request.body)
+        event = Events.objects.create(
+            evt_type=data.get('evt_type'),
+            evt_start=data.get('evt_start'),
+            evt_end=data.get('evt_end'),
+            evt_text=data.get('evt_text'),
+            evt_color=data.get('evt_color'),
+            status=data.get('status', False),
+            emp_emailid=emp_emailid
+        )
+        return JsonResponse({
+            'evt_id': event.evt_id,
+            'evt_type': event.evt_type,
+            'evt_start': event.evt_start,
+            'evt_end': event.evt_end,
+            'evt_text': event.evt_text,
+            'evt_color': event.evt_color,
+            'status': event.status
+        }, status=201)
+
+
+    elif request.method == 'PUT':
+        # Update existing event
+        data = json.loads(request.body)
+        evt_id = data.get('evt_id')
+        event = get_object_or_404(Events, pk=evt_id, emp_emailid=emp_emailid)
+
+        event.evt_type = data.get('evt_type', event.evt_type)
+        event.evt_start = data.get('evt_start', event.evt_start)
+        event.evt_end = data.get('evt_end', event.evt_end)
+        event.evt_text = data.get('evt_text', event.evt_text)
+        event.evt_color = data.get('evt_color', event.evt_color)
+        event.status = data.get('status', event.status)
+        event.save()
+
+        return JsonResponse({
+            'evt_id': event.evt_id,
+            'evt_type': event.evt_type,
+            'evt_start': event.evt_start,
+            'evt_end': event.evt_end,
+            'evt_text': event.evt_text,
+            'evt_color': event.evt_color,
+            'status': event.status
+        }, status=200)
+
+    elif request.method == 'DELETE':
+        # Delete an event
+        data = json.loads(request.body)
+        evt_id = data.get('evt_id')
+        event = get_object_or_404(Events, pk=evt_id, emp_emailid=emp_emailid)
+        event.delete()
+        return HttpResponse(status=204)
+
+    elif request.method == 'GET':
+        # Retrieve all events for the logged-in user
+        events = Events.objects.filter(emp_emailid=emp_emailid)
+        events_list = list(events.values(
+            'evt_id', 'evt_type', 'evt_start', 'evt_end', 'evt_text', 'evt_color', 'status'
+        ))
+        return JsonResponse(events_list, safe=False, status=200)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+# IT Declaration
+# Utility function to get the employee object
+def get_employee(email):
+    try:
+        return Employee.objects.get(emp_emailid=email)
+    except Employee.DoesNotExist:
+        return None
+
+@csrf_exempt
+def investment_80C(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+        
+        if employee:
+            ITDeclaration80c.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('type', 'Life Insurance Premium'),
+                Investment1_Amount=data.get('amount', 0),
+            )
+            return JsonResponse({"message": "Investment 80C data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+
+@csrf_exempt
+def investment_80D(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+        
+        if employee:
+            Itdeclaration80d_new1.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('type', 'Medi claim Policy for Self,Spouse,Children-80D'),
+                Investment1_Amount=data.get('amount', 0),
+                emp_emailid=employee,
+            )
+            return JsonResponse({"message": "Investment 80D data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+
+@csrf_exempt
+def other_investments(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+        
+        if employee:
+            Itdeclaration_oie_new1.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('type', 'Additional Exemptions on voluntary NPS'),
+                Investment1_Amount=data.get('amount', 0),
+                emp_emailid=employee,
+            )
+            return JsonResponse({"message": "Other investments data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+
+@csrf_exempt
+def other_income(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+    
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+        
+        if employee:
+            Itdeclaration_osi_new1.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('income', 'Income from other sources'),
+                Investment1_Amount=data.get('amount', 0),
+                Investment2_Amount=data.get('savingsInterest', 0),
+                Investment3_Amount=data.get('fixedDepositInterest', 0),
+                Investment4_Amount=data.get('nsCertificatesInterest', 0),
+                emp_emailid=employee,
+            )
+            return JsonResponse({"message": "Other income data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+        
+
+# TodoList
+@csrf_exempt
+def task_list(request):
+    if request.method == 'GET':
+        try:
+            # Fetch all tasks from the database
+            tasks = Todotasks1.objects.all().values('id', 'title', 'completed')  # Adjust fields as necessary
+            # Convert the queryset to a list of dictionaries
+            task_list = list(tasks)
+            return JsonResponse(task_list, safe=False)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    elif request.method == 'POST':
+        try:
+            # Parse the incoming data from the request
+            data = json.loads(request.body)
+            title = data.get('text', '')
+            completed = data.get('isCompleted', False)
+
+            # Create a new task
+            new_task = Todotasks1(title=title, completed=completed)
+            new_task.save()
+
+            return JsonResponse({'message': 'Task created successfully'}, status=201)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+def task_delete(request, task_id):
+    if request.method == 'DELETE':
+        try:
+            # Fetch the task by its ID
+            task = Todotasks1.objects.get(id=task_id)
+            task.delete()
+            return JsonResponse({'message': 'Task deleted successfully'}, status=200)
+        except Todotasks1.DoesNotExist:
+            return JsonResponse({'error': 'Task not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+
+@csrf_exempt
+def task_update(request, task_id):
+    if request.method == 'PUT':
+        try:
+            # Fetch the task by its ID
+            task = Todotasks1.objects.get(id=task_id)
+            
+            # Parse the request body
+            data = json.loads(request.body)
+            
+            # Update the task attributes
+            task.title = data.get('title', task.title)
+            task.completed = data.get('completed', task.completed)
+            task.save()
+            
+            return JsonResponse({
+                'message': 'Task updated successfully',
+                'task': {
+                    'id': task.id,
+                    'title': task.title,
+                    'completed': task.completed
+                }
+            }, status=200)
+        except Todotasks1.DoesNotExist:
+            return JsonResponse({'error': 'Task not found'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+
+
+def attrition_year_data(request):
+    data = list(AttritionYearData.objects.values())  # Get all objects and convert to list of dicts
+    return JsonResponse(data, safe=False)
+
+def attrition_department_data(request):
+    data = list(AttritionDepartmentData.objects.values())  # Get all objects and convert to list of dicts
+    return JsonResponse(data, safe=False)
+
+def attrition_reason_data(request):
+    data = list(AttritionReasonData.objects.values())  # Get all objects and convert to list of dicts
+    return JsonResponse(data, safe=False)
+
+def attrition_gender_data(request):
+    data = list(AttritionGenderData.objects.values())  # Get all objects and convert to list of dicts
+    return JsonResponse(data, safe=False)
+
+def attrition_choice_data(request):
+    data = list(AttritionChoiceData.objects.values())  # Get all objects and convert to list of dicts
+    return JsonResponse(data, safe=False)
+
+@csrf_exempt
+def poi_list_create(request):
+    if request.method == 'GET':
+        pois = POI.objects.all().values()
+        return JsonResponse(list(pois), safe=False)
+    
+    elif request.method == 'POST':
+        category = request.POST.get('category')
+        declared_amount = request.POST.get('declaredAmount')
+        actual_amount = request.POST.get('actualAmount')
+        file = request.FILES.get('file')
+
+        poi = POI(category=category, declared_amount=declared_amount, actual_amount=actual_amount, file=file)
+        poi.save()
+
+        return JsonResponse({
+            'id': poi.id,
+            'category': poi.category,
+            'declaredAmount': poi.declared_amount,
+            'actualAmount': poi.actual_amount,
+            'fileUrl': poi.file.url if poi.file else None,
+        }, status=201)
+
+@csrf_exempt
+def poi_delete(request, poi_id):
+    if request.method == 'DELETE':
+        poi = get_object_or_404(POI, pk=poi_id)
+        if poi.file:
+            default_storage.delete(poi.file.path)
+        poi.delete()
+        return JsonResponse({'message': 'POI deleted successfully.'}, status=200)

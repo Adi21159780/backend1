@@ -401,6 +401,7 @@ class Itdeclaration_oie_new(models.Model):
     Investment4 = models.CharField(max_length=50, default='Treatment of dependent with severe disability')
     Investment4_Amount = models.IntegerField(default=0)
     emp_emaiid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None)
+   
 
 class Itdeclaration_osi_new(models.Model):
     Emp_id = models.CharField(max_length=50, primary_key=True)
@@ -413,6 +414,7 @@ class Itdeclaration_osi_new(models.Model):
     Investment4 = models.CharField(max_length=50, default='Interest Earned from National Savings certificates')
     Investment4_Amount = models.IntegerField()
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None)
+    
 
 
 class Jd_table(models.Model):
