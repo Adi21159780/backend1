@@ -115,6 +115,10 @@ urlpatterns = [
     path('Jdlist/', views.JdList, name='JdList'),
     path('JdDetails/', views.JdDetails, name='JdDetails'),
     path('UpdateDependent/', views.UpdateDependent, name='UpdateDependent'),
+    path('CreateQuiz/', views.CreateQuiz, name='CreateQuiz'),
+    path('AttemptQuiz/', views.AttemptQuiz, name='AttemptQuiz'),
+    path('AttemptQuiz/<int:quiz_id>/', views.AttemptQuiz, name='AttemptQuiz'),
+    path('QuizResults/<int:quiz_id>/', views.QuizResults, name='QuizResults'),
 ]
 
 

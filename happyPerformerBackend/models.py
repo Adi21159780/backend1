@@ -655,18 +655,6 @@ class Questions_static(models.Model):
     choice = models.IntegerField()
     sn = models.IntegerField()
 
-class Quiz(models.Model):
-    id = models.IntegerField(primary_key=True)
-    eid = models.TextField()
-    title = models.CharField(max_length=100)
-    course_title = models.CharField(max_length=100)
-    correct = models.IntegerField()
-    wrong = models.IntegerField()
-    passing = models.IntegerField()
-    total = models.IntegerField()
-    time = models.BigIntegerField()
-    date = models.TextField()
-    status = models.CharField(max_length=10)
 
 class Reporting(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -885,3 +873,40 @@ class Kra_desc(models.Model):
     Measurement = models.IntegerField()
     submission_date = models.DateTimeField(default=None)
     email_id = models.CharField(max_length=100, null=True, default=None)
+
+class Quiz(models.Model):
+    eid = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="employees")
+    title = models.CharField(max_length=100)
+    course_title = models.CharField(max_length=100)
+    correct = models.IntegerField(default=0)
+    wrong = models.DecimalField(max_digits=5, decimal_places=2)
+    total_marks = models.IntegerField(default=0)
+    passing = models.IntegerField()
+    total = models.IntegerField()
+    time = models.BigIntegerField()
+    date = models.TextField()
+    status = models.CharField(max_length=10)
+
+# Question Model
+class Question(models.Model):
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
+    text = models.TextField()  # The question text
+    correct_answer = models.TextField()  # Correct answer text
+
+# Option Model
+class Option(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options")
+    text = models.TextField()  # The option text
+    is_correct = models.BooleanField(default=False)  # Marks if this option is the correct answer
+
+# Quiz Attempt Model to track each employee's quiz attempt
+class QuizAttempt(models.Model):
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts")
+    employee = models.ForeignKey('Employee', on_delete=models.CASCADE)
+    chosen_options = models.JSONField()  # Store the chosen options as a JSON object (question_id -> chosen option)
+    score = models.IntegerField()  # Marks obtained by the employee
+    time_taken = models.IntegerField()  # Time taken to complete the quiz
+    is_passed = models.BooleanField()  # Whether the employee passed the quiz
+    attempt_date = models.DateTimeField(auto_now_add=True)  # When the attempt happened
+    total_correct = models.IntegerField(default=0)  # Add this field
+    total_wrong = models.IntegerField(default=0)  # Add this field

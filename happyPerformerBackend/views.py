@@ -28,7 +28,7 @@ import openpyxl
 from django.core.files.storage import default_storage
 import pandas as pd
 from django.db.models import Max
-
+from datetime import timedelta
 
 
 
@@ -5506,13 +5506,376 @@ def JdDetails(request):
 
 
 
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def CreateQuiz(request):
+    if request.method == 'POST':
+        user_email = request.session.get('user_id')
+        if not user_email:
+            return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+        try:
+
+            user = Employee.objects.get(emp_emailid=user_email)
+
+            if user.emp_role not in ['HR', 'Manager', 'Super Manager']:
+                return JsonResponse({'error': 'You do not have permission to create a quiz'}, status=403)
+
+            company = user.d_id.c_id
+
+            data = json.loads(request.body)
+            quiz_title = data.get('quizTitle')
+            course_id = data.get('course')
+            total_questions = data.get('totalQuestions')
+            marks_for_correct_answer = data.get('marksOnRightAnswer')
+            marks_for_wrong_answer = data.get('minusMarksOnWrongAnswer')
+            total_marks = int(data.get('total_marks', 0))
+            passing_marks = data.get('passingMarks')
+            time_limit = data.get('timeLimit')
+
+            # Extract questions and options from the request
+            questions = data.get('questions')
+
+            # Check if the course exists and belongs to the user's company
+            try:
+                course = Courses.objects.get(course_id=course_id, c_id=company)
+            except Courses.DoesNotExist:
+                return JsonResponse({'error': 'Course does not exist in your company'}, status=404)
+
+            # Create the quiz record
+            quiz = Quiz(
+                eid=user,
+                title=quiz_title,
+                course_title=course.course_title,
+                total=total_questions,
+                correct=marks_for_correct_answer,
+                wrong=marks_for_wrong_answer,
+                passing=passing_marks,
+                total_marks=total_marks,
+                time=time_limit,
+                date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                status='active'
+            )
+            quiz.save()
+
+            # Create question and options records
+            for question_data in questions:
+                question_text = question_data['text']
+                correct_answer = question_data['correct_answer']
+                options = question_data['options']
+
+                question = Question(quiz=quiz, text=question_text, correct_answer=correct_answer)
+                question.save()
+
+                for option_data in options:
+                    option = Option(
+                        question=question,
+                        text=option_data['text'],
+                        is_correct=option_data['is_correct']
+                    )
+                    option.save()
+
+            return JsonResponse({'message': 'Quiz created successfully'}, status=201)
+
+        except Employee.DoesNotExist:
+            return JsonResponse({'error': 'User does not exist'}, status=404)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 
 
 
+@csrf_exempt
+def AttemptQuiz(request, quiz_id=None):
+    user_email = request.session.get('user_id')
+    if not user_email:
+        return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+    user = get_object_or_404(Employee, emp_emailid=user_email)
+
+    # Handle GET request
+    if request.method == 'GET':
+        if quiz_id is None:
+            quizzes = Quiz.objects.filter(eid=user).values('id', 'title', 'time')
+            return JsonResponse(list(quizzes), safe=False)
+        else:
+            quiz = get_object_or_404(Quiz, id=quiz_id, eid=user)
+            questions = []
+            for question in Question.objects.filter(quiz=quiz):
+                options = Option.objects.filter(question=question).values('id', 'text')
+                questions.append({
+                    'id': question.id,
+                    'text': question.text,
+                    'options': list(options)
+                })
+
+            # Store the start time in the session
+            request.session['quiz_start_time'] = timezone.now().isoformat()
+
+            response_data = {
+                'quiz_id': quiz.id,
+                'quiz_title': quiz.title,
+                'time_limit': quiz.time,
+                'questions': questions
+            }
+            return JsonResponse(response_data, safe=False)
+
+    # Handle POST request for quiz submission
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        chosen_options = data.get('chosen_options')  # {question_id: chosen_option_id}
+
+        # Retrieve the start time from the session
+        start_time_str = request.session.get('quiz_start_time')
+        if not start_time_str:
+            return JsonResponse({'error': 'Start time not found'}, status=400)
+
+        start_time = timezone.datetime.fromisoformat(start_time_str)
+
+        # Fetch the quiz details
+        quiz = get_object_or_404(Quiz, id=quiz_id)
+
+        # Check if the user has already attempted this quiz
+        attempt = QuizAttempt.objects.filter(quiz=quiz, employee=user).first()
+        if attempt:
+            # Update existing attempt
+            attempt.chosen_options = chosen_options
+            attempt.score = 0  # Reset score to recalculate
+            attempt.total_correct = 0  # Reset correct count
+            attempt.total_wrong = 0  # Reset wrong count
+        else:
+            # Create a new attempt if none exists
+            attempt = QuizAttempt(
+                quiz=quiz,
+                employee=user,
+                chosen_options=chosen_options,
+                score=0,
+                total_correct=0,
+                total_wrong=0
+            )
+
+        # Initialize score calculation
+        score = 0
+        total_correct = 0
+        total_wrong = 0
+
+        for question_id, option_id in chosen_options.items():
+            try:
+                question = Question.objects.get(id=question_id, quiz=quiz)
+                chosen_option = Option.objects.get(id=option_id, question=question)
+
+                if chosen_option.is_correct:
+                    score += quiz.correct  # Add correct marks
+                    total_correct += 1
+                else:
+                    score -= quiz.wrong  # Subtract wrong marks
+                    total_wrong += 1
+            except Question.DoesNotExist:
+                return JsonResponse({'error': f'Invalid question ID: {question_id}'}, status=400)
+            except Option.DoesNotExist:
+                return JsonResponse({'error': f'Invalid option ID: {option_id}'}, status=400)
+
+        # Calculate elapsed time
+        end_time = timezone.now()
+        time_taken = (end_time - start_time)  # Time taken as a timedelta
+
+        # Save time taken in total seconds
+        total_seconds = int(time_taken.total_seconds())
+
+        if total_seconds > (quiz.time * 60):  # Check if time limit exceeded (convert to seconds)
+            return JsonResponse({'error': 'Time limit exceeded'}, status=400)
+
+        # Update the attempt details with the new score, time, and question stats
+        attempt.score = score
+        attempt.time_taken = total_seconds  # Save time in seconds
+        attempt.is_passed = score >= quiz.passing
+        attempt.total_correct = total_correct  # Save total correct answers
+        attempt.total_wrong = total_wrong  # Save total wrong answers
+        attempt.save()
+
+        # Update quiz total marks (if needed) and related fields
+        quiz.total_marks = score  # Update the total marks for the quiz
+        quiz.save()
+
+        # Format the time taken for response
+        formatted_time = f"{total_seconds // 3600:02}:{(total_seconds % 3600) // 60:02}:{total_seconds % 60:02}"
+
+        # Return the result of the quiz
+        response_data = {
+            'message': 'Quiz submitted successfully',
+            'score': score,
+            'total_correct': total_correct,
+            'total_wrong': total_wrong,
+            'is_passed': attempt.is_passed,
+            'time_taken': formatted_time,  # Return formatted time
+            'max_time': quiz.time,
+        }
+
+        return JsonResponse(response_data, status=201)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 
 
+# @csrf_exempt
+# def AttemptQuiz(request, quiz_id=None):
+#     user_email = request.session.get('user_id')
+#     if not user_email:
+#         return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+#     user = get_object_or_404(Employee, emp_emailid=user_email)
+
+#     # If it's a GET request, list all available quizzes
+#     if request.method == 'GET':
+#         if quiz_id is None:
+#             quizzes = Quiz.objects.filter(eid=user).values('id', 'title', 'time')
+#             return JsonResponse(list(quizzes), safe=False)
+#         else:
+#             quiz = get_object_or_404(Quiz, id=quiz_id, eid=user)
+#             questions = []
+#             for question in Question.objects.filter(quiz=quiz):
+#                 options = Option.objects.filter(question=question).values('id', 'text')
+#                 questions.append({
+#                     'id': question.id,
+#                     'text': question.text,
+#                     'options': list(options)
+#                 })
+#             response_data = {
+#                 'quiz_id': quiz.id,
+#                 'quiz_title': quiz.title,
+#                 'time_limit': quiz.time,
+#                 'questions': questions
+#             }
+#             return JsonResponse(response_data, safe=False)
+
+#     # If it's a POST request, submit the quiz answers and calculate the score
+#     elif request.method == 'POST':
+#         data = json.loads(request.body)
+#         chosen_options = data.get('chosen_options')  # {question_id: chosen_option_id}
+        
+#         # Record the start time on the server
+#         start_time = timezone.now()
+
+#         # Fetch the quiz details
+#         quiz = get_object_or_404(Quiz, id=quiz_id)
+
+#         # Initialize score calculation
+#         score = 0
+#         total_correct = 0
+#         total_wrong = 0
+
+#         for question_id, option_id in chosen_options.items():
+#             try:
+#                 question = Question.objects.get(id=question_id, quiz=quiz)
+#                 chosen_option = Option.objects.get(id=option_id, question=question)
+
+#                 # Check if the chosen option is correct
+#                 if chosen_option.is_correct:
+#                     score += quiz.correct
+#                     total_correct += 1
+#                 else:
+#                     score -= quiz.wrong
+#                     total_wrong += 1
+#             except Question.DoesNotExist:
+#                 return JsonResponse({'error': f'Invalid question ID: {question_id}'}, status=400)
+#             except Option.DoesNotExist:
+#                 return JsonResponse({'error': f'Invalid option ID: {option_id}'}, status=400)
+
+#         # Calculate elapsed time
+#         end_time = timezone.now()
+#         time_taken = (end_time - start_time).total_seconds() / 60  # Convert to minutes
+
+#         if time_taken > quiz.time:
+#             return JsonResponse({'error': 'Time limit exceeded'}, status=400)
+
+#         # Determine if the user passed or failed
+#         is_passed = score >= quiz.passing
+
+#         # Save the attempt details
+#         QuizAttempt.objects.create(
+#             quiz=quiz,
+#             employee=user,
+#             chosen_options=chosen_options,
+#             score=score,
+#             time_taken=time_taken,
+#             is_passed=is_passed
+#         )
+
+#         # Return the result of the quiz
+#         response_data = {
+#             'message': 'Quiz submitted successfully',
+#             'score': score,
+#             'total_correct': total_correct,
+#             'total_wrong': total_wrong,
+#             'is_passed': is_passed,
+#             'time_taken': time_taken,
+#             'max_time': quiz.time,
+#         }
+
+#         return JsonResponse(response_data, status=201)
+
+#     else:
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@csrf_exempt
+def QuizResults(request, quiz_id):
+    # Check if the request method is GET
+    if request.method == 'GET':
+        # Fetch quiz attempts for the given quiz
+        attempts = QuizAttempt.objects.filter(quiz_id=quiz_id)
+        if not attempts.exists():
+            return JsonResponse({'error': 'No attempts found for this quiz'}, status=404)
+
+        # Get the first attempt as an example
+        attempt = attempts.first()
+        
+        # Fetch the quiz details
+        quiz = attempt.quiz
+        
+        # Get the chosen options
+        total_attempts = attempt.chosen_options  # Assuming this contains question_id -> chosen_option_id
+        total_questions = len(total_attempts)  # Total number of questions attempted
+        
+        # Count correct and wrong answers
+        total_correct = 0
+        for question_id, chosen_option in total_attempts.items():
+            try:
+                option = Option.objects.get(id=chosen_option)
+                if option.is_correct:
+                    total_correct += 1
+            except Option.DoesNotExist:
+                continue  # Handle cases where the chosen option does not exist
+
+        total_wrong = total_questions - total_correct
+        
+        # Get the negative mark deduction from the quiz
+        negative_mark_deduction = quiz.wrong  # Assuming 'wrong' is the negative marking for each incorrect answer
+        
+        # Calculate total marks and final score after applying negative marks
+        negative_marks = total_wrong * negative_mark_deduction
+        final_score = attempt.score - negative_marks  # Assuming attempt.score is the score before deductions
+        
+        # Ensure final score does not drop below zero
+        final_score = max(final_score, 0)
+
+        response_data = {
+            'quiz_title': quiz.title,
+            'full_marks': quiz.total_marks,
+            'obtained_marks': final_score,  # Show final score after negative marks
+            'negative_marks': negative_marks,  # Show total negative marks deducted
+            'time_taken': attempt.time_taken,
+            'is_passed': final_score >= quiz.passing  # Check if passed based on final score
+        }
+
+        return JsonResponse(response_data, status=200)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
