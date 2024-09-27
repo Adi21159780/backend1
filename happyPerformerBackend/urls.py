@@ -121,6 +121,7 @@ urlpatterns = [
     path('QuizResults/', views.QuizResults, name='QuizResults'),
     path('QuizResults/<int:quiz_id>/', views.QuizResults, name='QuizResults'),
     path('DetailedDescription/<int:quiz_id>/', views.DetailedDescription, name='DetailedDescription'),
+    path('AttemptedQuizzes/', views.AttemptedQuizzes, name='AttemptedQuizzes'),
 ]
 
 

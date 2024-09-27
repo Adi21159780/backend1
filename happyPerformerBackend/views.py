@@ -5981,3 +5981,71 @@ def DetailedDescription(request, quiz_id):
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
+
+
+@csrf_exempt
+def AttemptedQuizzes(request):
+    # Get the logged-in user's email ID from the session
+    user_email = request.session.get('user_id')
+
+    if not user_email:
+        return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+    try:
+        # Fetch the employee object based on the logged-in user's email ID
+        user = Employee.objects.get(emp_emailid=user_email)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'Employee not found'}, status=404)
+
+    # Ensure it's a GET request
+    if request.method == 'GET':
+        # Fetch all quiz attempts for the logged-in employee
+        quiz_attempts = QuizAttempt.objects.filter(employee=user)
+
+        if not quiz_attempts.exists():
+            return JsonResponse({'error': 'No quizzes attempted by the user'}, status=404)
+
+        # Prepare the list of attempted quizzes and their details
+        quizzes_data = []
+        for attempt in quiz_attempts:
+            quiz = attempt.quiz
+
+            # Fetch the questions and the chosen options for this quiz
+            questions = []
+            for question in quiz.questions.all():
+                # Get the correct option for this question
+                correct_option = question.options.filter(is_correct=True).first()
+
+                # Get the selected option by the user for this question
+                chosen_option_id = attempt.chosen_options.get(str(question.id))
+                chosen_option = question.options.filter(id=chosen_option_id).first()
+
+                # Append the question data along with the correct and chosen option
+                questions.append({
+                    'question_id': question.id,
+                    'question_text': question.text,
+                    'correct_option': correct_option.text if correct_option else None,  # Correct answer text
+                    'chosen_option': chosen_option.text if chosen_option else None  # Chosen answer text by the user
+                })
+
+            # Convert time_taken (in seconds) to hh:mm:ss format
+            time_taken_str = str(timedelta(seconds=attempt.time_taken))  # Use timedelta from the datetime module
+
+            # Add the quiz and attempt details to the response
+            quizzes_data.append({
+                'quiz_id': quiz.id,
+                'quiz_title': quiz.title,
+                'course_title': quiz.course_title,
+                'questions': questions,
+                'marks_obtained': attempt.score,  # The marks the employee got
+                'total_marks': quiz.total_marks,  # Full marks for the quiz
+                'time_taken': time_taken_str,  # Time taken to complete the quiz in hh:mm:ss format
+                'is_passed': attempt.is_passed,  # Whether the user passed the quiz
+                'total_correct': attempt.total_correct,  # Number of correct answers
+                'total_wrong': attempt.total_wrong,  # Number of wrong answers
+                'total_unattempted': attempt.total_unattempted  # Number of unattempted questions
+            })
+
+        return JsonResponse({'quizzes': quizzes_data}, status=200)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
