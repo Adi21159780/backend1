@@ -909,4 +909,5 @@ class QuizAttempt(models.Model):
     is_passed = models.BooleanField()  # Whether the employee passed the quiz
     attempt_date = models.DateTimeField(auto_now_add=True)  # When the attempt happened
     total_correct = models.IntegerField(default=0)  # Add this field
+    total_unattempted = models.IntegerField(default=0)  # Add this field
     total_wrong = models.IntegerField(default=0)  # Add this field

@@ -5596,15 +5596,27 @@ def AttemptQuiz(request, quiz_id=None):
     if not user_email:
         return JsonResponse({'error': 'User not authenticated'}, status=403)
 
+    # Fetch the employee and department
     user = get_object_or_404(Employee, emp_emailid=user_email)
+    user_department = user.d_id  # Get the user's department
+    company_id = user_department.c_id  # Get the company ID from the department
 
     # Handle GET request
     if request.method == 'GET':
         if quiz_id is None:
-            quizzes = Quiz.objects.filter(eid=user).values('id', 'title', 'time')
+            # Get all quizzes that belong to the same company as the user
+            quizzes = Quiz.objects.filter(eid__d_id__c_id=company_id).values(
+                'id', 'title', 'course_title', 'correct', 'wrong', 'total_marks', 
+                'passing', 'total', 'time', 'date', 'status'
+            )
+
+            # Return full details of each quiz
             return JsonResponse(list(quizzes), safe=False)
         else:
-            quiz = get_object_or_404(Quiz, id=quiz_id, eid=user)
+            # Get a specific quiz if quiz_id is provided and matches the company
+            quiz = get_object_or_404(Quiz, id=quiz_id, eid__d_id__c_id=company_id)
+
+            # Fetch the related questions and options for the quiz
             questions = []
             for question in Question.objects.filter(quiz=quiz):
                 options = Option.objects.filter(question=question).values('id', 'text')
@@ -5624,6 +5636,8 @@ def AttemptQuiz(request, quiz_id=None):
                 'questions': questions
             }
             return JsonResponse(response_data, safe=False)
+
+        
 
     # Handle POST request for quiz submission
     elif request.method == 'POST':
@@ -5738,9 +5752,10 @@ def QuizResults(request, quiz_id):
         # Fetch the quiz details
         quiz = attempt.quiz
         
-        # Use pre-calculated total_correct and total_wrong from the database
+        # Use pre-calculated total_correct, total_wrong, and total_unattempted from the database
         total_correct = attempt.total_correct
         total_wrong = attempt.total_wrong
+        total_unattempted = attempt.total_unattempted
         
         # Get the negative mark deduction from the quiz
         negative_mark_deduction = quiz.wrong  # Assuming 'wrong' is the negative marking for each incorrect answer
@@ -5758,15 +5773,138 @@ def QuizResults(request, quiz_id):
         time_taken_seconds = attempt.time_taken
         time_taken_str = str(timedelta(seconds=time_taken_seconds))  # Use timedelta from the datetime module
 
+        # Prepare the response data, including total_correct, total_wrong, and total_unattempted
         response_data = {
             'quiz_title': quiz.title,
             'full_marks': quiz.total_marks,
             'obtained_marks': f"{final_score:.2f}",  # Ensure obtained marks is in 2 decimal places
             'negative_marks': f"{negative_marks:.2f}",  # Ensure negative marks is in 2 decimal places
             'time_taken': time_taken_str,  # Display the time in hh:mm:ss format
-            'is_passed': final_score >= quiz.passing  # Check if passed based on final score
+            'is_passed': final_score >= quiz.passing,  # Check if passed based on final score
+            'total_correct': total_correct,
+            'total_wrong': total_wrong,
+            'total_unattempted': total_unattempted  # Include total unattempted questions
         }
 
         return JsonResponse(response_data, status=200)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+
+ # Ensure the user is logged in
+# @csrf_exempt
+# def DetailedDescription(request, quiz_id):
+#     # Get the logged-in user's email ID from the session
+#     user_email = request.session.get('user_id')
+    
+#     if not user_email:
+#         return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+#     try:
+#         # Fetch the employee object based on the logged-in user's email ID
+#         user = Employee.objects.get(emp_emailid=user_email)
+#     except Employee.DoesNotExist:
+#         return JsonResponse({'error': 'Employee not found'}, status=404)
+    
+#     # Ensure it's a GET request
+#     if request.method == 'GET':
+#         try:
+#             # Fetch the quiz details
+#             quiz = Quiz.objects.get(id=quiz_id)
+
+#             # Get the quiz attempt for the logged-in employee
+#             attempt = QuizAttempt.objects.get(quiz=quiz, employee=user)
+
+#             # Fetch the questions and the chosen options for this quiz
+#             questions = []
+#             for question in quiz.questions.all():
+#                 # Get all options for each question
+#                 options = question.options.all()
+                
+#                 # Get the selected option by the user for this question
+#                 chosen_option_id = attempt.chosen_options.get(str(question.id))
+                
+#                 questions.append({
+#                     'question_id': question.id,
+#                     'question_text': question.text,
+#                     'options': [{'id': option.id, 'text': option.text, 'is_correct': option.is_correct} for option in options],
+#                     'chosen_option': chosen_option_id  # The option selected by the user
+#                 })
+
+#             # Prepare the response data
+#             response_data = {
+#                 'quiz_id': quiz.id,
+#                 'quiz_title': quiz.title,
+#                 'questions': questions
+#             }
+
+#             return JsonResponse(response_data, status=200)
+
+#         except Quiz.DoesNotExist:
+#             return JsonResponse({'error': 'Quiz not found'}, status=404)
+#         except QuizAttempt.DoesNotExist:
+#             return JsonResponse({'error': 'Quiz attempt not found for the employee'}, status=404)
+
+#     else:
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+@csrf_exempt
+def DetailedDescription(request, quiz_id):
+    # Get the logged-in user's email ID from the session
+    user_email = request.session.get('user_id')
+    
+    if not user_email:
+        return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+    try:
+        # Fetch the employee object based on the logged-in user's email ID
+        user = Employee.objects.get(emp_emailid=user_email)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'Employee not found'}, status=404)
+    
+    # Ensure it's a GET request
+    if request.method == 'GET':
+        try:
+            # Fetch the quiz details
+            quiz = Quiz.objects.get(id=quiz_id)
+
+            # Get the quiz attempt for the logged-in employee
+            attempt = QuizAttempt.objects.get(quiz=quiz, employee=user)
+
+            # Fetch the questions and the chosen options for this quiz
+            questions = []
+            for question in quiz.questions.all():
+                # Get the correct option for this question
+                correct_option = question.options.filter(is_correct=True).first()
+
+                # Get the selected option by the user for this question
+                chosen_option_id = attempt.chosen_options.get(str(question.id))
+                chosen_option = question.options.filter(id=chosen_option_id).first()
+
+                # Append the question data along with the correct and chosen option
+                questions.append({
+                    'question_id': question.id,
+                    'question_text': question.text,
+                    'correct_option': correct_option.text if correct_option else None,  # Correct answer text
+                    'chosen_option': chosen_option.text if chosen_option else None  # Chosen answer text by the user
+                })
+
+            # Prepare the response data
+            response_data = {
+                'quiz_id': quiz.id,
+                'quiz_title': quiz.title,
+                'questions': questions
+            }
+
+            return JsonResponse(response_data, status=200)
+
+        except Quiz.DoesNotExist:
+            return JsonResponse({'error': 'Quiz not found'}, status=404)
+        except QuizAttempt.DoesNotExist:
+            return JsonResponse({'error': 'Quiz attempt not found for the employee'}, status=404)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+

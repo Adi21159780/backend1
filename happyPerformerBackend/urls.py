@@ -119,6 +119,7 @@ urlpatterns = [
     path('AttemptQuiz/', views.AttemptQuiz, name='AttemptQuiz'),
     path('AttemptQuiz/<int:quiz_id>/', views.AttemptQuiz, name='AttemptQuiz'),
     path('QuizResults/<int:quiz_id>/', views.QuizResults, name='QuizResults'),
+    path('DetailedDescription/<int:quiz_id>/', views.DetailedDescription, name='DetailedDescription'),
 ]
 
 
