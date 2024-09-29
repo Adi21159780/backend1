@@ -904,7 +904,7 @@ class QuizAttempt(models.Model):
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts")
     employee = models.ForeignKey('Employee', on_delete=models.CASCADE)
     chosen_options = models.JSONField()  # Store the chosen options as a JSON object (question_id -> chosen option)
-    score = models.IntegerField()  # Marks obtained by the employee
+    score = models.DecimalField(max_digits=5, decimal_places=2)  # Marks obtained by the employee
     time_taken = models.IntegerField()  # Time taken to complete the quiz
     is_passed = models.BooleanField()  # Whether the employee passed the quiz
     attempt_date = models.DateTimeField(auto_now_add=True)  # When the attempt happened

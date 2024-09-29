@@ -5687,7 +5687,7 @@ def AttemptQuiz(request, quiz_id=None):
                     score += quiz.correct  # Add correct marks
                     total_correct += 1
                 else:
-                    score -= quiz.wrong  # Subtract wrong marks
+                    score -= quiz.wrong  # Subtract wrong marks Because of the fact that we are storing the minus marks on incorrect answer we are adding here if you wish to change this carefully update all the occurrences of marks 
                     total_wrong += 1
             except Question.DoesNotExist:
                 return JsonResponse({'error': f'Invalid question ID: {question_id}'}, status=400)
@@ -5700,8 +5700,8 @@ def AttemptQuiz(request, quiz_id=None):
 
         # Save time taken in total seconds
         total_seconds = int(time_taken.total_seconds())
-
-        if total_seconds > (quiz.time * 60):  # Check if time limit exceeded (convert to seconds)
+        tolerance_of_time = 60 # 1 Minute Time tolerance so that request response time cost not paid by user attempting quiz
+        if total_seconds > (quiz.time * 60 + tolerance_of_time):  # Check if time limit exceeded (convert to seconds)
             return JsonResponse({'error': 'Time limit exceeded'}, status=400)
 
         # Update the attempt details with the new score, time, and question stats
@@ -5710,10 +5710,11 @@ def AttemptQuiz(request, quiz_id=None):
         attempt.is_passed = score >= quiz.passing
         attempt.total_correct = total_correct  # Save total correct answers
         attempt.total_wrong = total_wrong  # Save total wrong answers
+        attempt.total_unattempted = quiz.total - (total_correct + total_wrong)  # Save total wrong answers
         attempt.save()
 
         # Update quiz total marks (if needed) and related fields
-        quiz.total_marks = score  # Update the total marks for the quiz
+        # quiz.total_marks = score  # Update the total marks for the quiz
         quiz.save()
 
         # Format the time taken for response
@@ -5722,7 +5723,7 @@ def AttemptQuiz(request, quiz_id=None):
         # Return the result of the quiz
         response_data = {
             'message': 'Quiz submitted successfully',
-            'score': score,
+            'score': int(score),
             'total_correct': total_correct,
             'total_wrong': total_wrong,
             'is_passed': attempt.is_passed,
@@ -5778,7 +5779,7 @@ def QuizResults(request, quiz_id=None):
             negative_marks = total_wrong * negative_mark_deduction
 
             # Calculate final score after applying negative marks
-            final_score = attempt.score - negative_marks
+            final_score = attempt.score
             final_score = max(final_score, 0)
 
             # Convert time_taken (in seconds) to hh:mm:ss format
@@ -5789,13 +5790,15 @@ def QuizResults(request, quiz_id=None):
             response_data = {
                 'quiz_title': quiz.title,
                 'full_marks': quiz.total_marks,
-                'obtained_marks': f"{final_score:.2f}",
-                'negative_marks': f"{negative_marks:.2f}",
+                'total_questions': quiz.total,
+                'passing_marks': quiz.passing,
+                'obtained_marks': int(final_score),
+                'negative_marks': int(negative_marks),
                 'time_taken': time_taken_str,
                 'is_passed': final_score >= quiz.passing,
                 'total_correct': total_correct,
                 'total_wrong': total_wrong,
-                'total_unattempted': total_unattempted
+                'total_unattempted': total_unattempted,
             }
 
             return JsonResponse(response_data, status=200)
@@ -5836,8 +5839,8 @@ def QuizResults(request, quiz_id=None):
                 attempt_data = {
                     'quiz_title': quiz.title,
                     'full_marks': quiz.total_marks,
-                    'obtained_marks': f"{final_score:.2f}",
-                    'negative_marks': f"{negative_marks:.2f}",
+                    'obtained_marks': float(final_score),
+                    'negative_marks': float(negative_marks),
                     'time_taken': time_taken_str,
                     'is_passed': final_score >= quiz.passing,
                     'total_correct': total_correct,
@@ -5855,65 +5858,6 @@ def QuizResults(request, quiz_id=None):
 
 
 
-
- # Ensure the user is logged in
-# @csrf_exempt
-# def DetailedDescription(request, quiz_id):
-#     # Get the logged-in user's email ID from the session
-#     user_email = request.session.get('user_id')
-    
-#     if not user_email:
-#         return JsonResponse({'error': 'User not authenticated'}, status=403)
-
-#     try:
-#         # Fetch the employee object based on the logged-in user's email ID
-#         user = Employee.objects.get(emp_emailid=user_email)
-#     except Employee.DoesNotExist:
-#         return JsonResponse({'error': 'Employee not found'}, status=404)
-    
-#     # Ensure it's a GET request
-#     if request.method == 'GET':
-#         try:
-#             # Fetch the quiz details
-#             quiz = Quiz.objects.get(id=quiz_id)
-
-#             # Get the quiz attempt for the logged-in employee
-#             attempt = QuizAttempt.objects.get(quiz=quiz, employee=user)
-
-#             # Fetch the questions and the chosen options for this quiz
-#             questions = []
-#             for question in quiz.questions.all():
-#                 # Get the correct option for this question
-#                 correct_option = question.options.filter(is_correct=True).first()
-
-#                 # Get the selected option by the user for this question
-#                 chosen_option_id = attempt.chosen_options.get(str(question.id))
-#                 chosen_option = question.options.filter(id=chosen_option_id).first()
-
-#                 # Append the question data along with the correct and chosen option
-#                 questions.append({
-#                     'question_id': question.id,
-#                     'question_text': question.text,
-#                     'correct_option': correct_option.text if correct_option else None,  # Correct answer text
-#                     'chosen_option': chosen_option.text if chosen_option else None  # Chosen answer text by the user
-#                 })
-
-#             # Prepare the response data
-#             response_data = {
-#                 'quiz_id': quiz.id,
-#                 'quiz_title': quiz.title,
-#                 'questions': questions
-#             }
-
-#             return JsonResponse(response_data, status=200)
-
-#         except Quiz.DoesNotExist:
-#             return JsonResponse({'error': 'Quiz not found'}, status=404)
-#         except QuizAttempt.DoesNotExist:
-#             return JsonResponse({'error': 'Quiz attempt not found for the employee'}, status=404)
-
-#     else:
-#         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 @csrf_exempt
@@ -6010,40 +5954,23 @@ def AttemptedQuizzes(request):
         for attempt in quiz_attempts:
             quiz = attempt.quiz
 
-            # Fetch the questions and the chosen options for this quiz
-            questions = []
-            for question in quiz.questions.all():
-                # Get the correct option for this question
-                correct_option = question.options.filter(is_correct=True).first()
-
-                # Get the selected option by the user for this question
-                chosen_option_id = attempt.chosen_options.get(str(question.id))
-                chosen_option = question.options.filter(id=chosen_option_id).first()
-
-                # Append the question data along with the correct and chosen option
-                questions.append({
-                    'question_id': question.id,
-                    'question_text': question.text,
-                    'correct_option': correct_option.text if correct_option else None,  # Correct answer text
-                    'chosen_option': chosen_option.text if chosen_option else None  # Chosen answer text by the user
-                })
-
             # Convert time_taken (in seconds) to hh:mm:ss format
             time_taken_str = str(timedelta(seconds=attempt.time_taken))  # Use timedelta from the datetime module
 
             # Add the quiz and attempt details to the response
+
             quizzes_data.append({
                 'quiz_id': quiz.id,
                 'quiz_title': quiz.title,
-                'course_title': quiz.course_title,
-                'questions': questions,
+                'total_questions': quiz.total,
+                'passing_marks': quiz.passing,
                 'marks_obtained': attempt.score,  # The marks the employee got
                 'total_marks': quiz.total_marks,  # Full marks for the quiz
                 'time_taken': time_taken_str,  # Time taken to complete the quiz in hh:mm:ss format
                 'is_passed': attempt.is_passed,  # Whether the user passed the quiz
                 'total_correct': attempt.total_correct,  # Number of correct answers
                 'total_wrong': attempt.total_wrong,  # Number of wrong answers
-                'total_unattempted': attempt.total_unattempted  # Number of unattempted questions
+                'attempted': (quiz.total - attempt.total_unattempted)  # Number of unattempted questions
             })
 
         return JsonResponse({'quizzes': quizzes_data}, status=200)
