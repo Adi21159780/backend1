@@ -875,7 +875,7 @@ class Kra_desc(models.Model):
     email_id = models.CharField(max_length=100, null=True, default=None)
 
 class Quiz(models.Model):
-    eid = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="employees")
+    eid = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="quizzes")
     title = models.CharField(max_length=100)
     course_title = models.CharField(max_length=100)
     correct = models.IntegerField(default=0)
@@ -883,7 +883,7 @@ class Quiz(models.Model):
     total_marks = models.IntegerField(default=0)
     passing = models.IntegerField()
     total = models.IntegerField()
-    time = models.BigIntegerField()
+    time = models.IntegerField()
     date = models.TextField()
     status = models.CharField(max_length=10)
 

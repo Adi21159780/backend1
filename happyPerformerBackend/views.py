@@ -5723,7 +5723,7 @@ def AttemptQuiz(request, quiz_id=None):
         # Return the result of the quiz
         response_data = {
             'message': 'Quiz submitted successfully',
-            'score': int(score),
+            'score': float(score),
             'total_correct': total_correct,
             'total_wrong': total_wrong,
             'is_passed': attempt.is_passed,
@@ -5780,7 +5780,6 @@ def QuizResults(request, quiz_id=None):
 
             # Calculate final score after applying negative marks
             final_score = attempt.score
-            final_score = max(final_score, 0)
 
             # Convert time_taken (in seconds) to hh:mm:ss format
             time_taken_seconds = attempt.time_taken
@@ -5790,15 +5789,13 @@ def QuizResults(request, quiz_id=None):
             response_data = {
                 'quiz_title': quiz.title,
                 'full_marks': quiz.total_marks,
-                'total_questions': quiz.total,
-                'passing_marks': quiz.passing,
-                'obtained_marks': int(final_score),
-                'negative_marks': int(negative_marks),
+                'obtained_marks': float(final_score),
+                'negative_marks': float(negative_marks),
                 'time_taken': time_taken_str,
                 'is_passed': final_score >= quiz.passing,
                 'total_correct': total_correct,
                 'total_wrong': total_wrong,
-                'total_unattempted': total_unattempted,
+                'total_unattempted': total_unattempted
             }
 
             return JsonResponse(response_data, status=200)
@@ -5828,8 +5825,7 @@ def QuizResults(request, quiz_id=None):
                 negative_marks = total_wrong * negative_mark_deduction
 
                 # Calculate final score after applying negative marks
-                final_score = attempt.score - negative_marks
-                final_score = max(final_score, 0)
+                final_score = attempt.score
 
                 # Convert time_taken (in seconds) to hh:mm:ss format
                 time_taken_seconds = attempt.time_taken
@@ -5909,7 +5905,7 @@ def DetailedDescription(request, quiz_id):
                 'quiz_id': quiz.id,
                 'quiz_title': quiz.title,
                 'questions': questions,
-                'marks_obtained': attempt.score,  # The marks the employee got
+                'marks_obtained': float(attempt.score),  # The marks the employee got
                 'total_marks': quiz.total_marks,  # Full marks for the quiz
                 'time_taken': time_taken_str  # Time taken to complete the quiz in hh:mm:ss format
             }
@@ -5964,7 +5960,7 @@ def AttemptedQuizzes(request):
                 'quiz_title': quiz.title,
                 'total_questions': quiz.total,
                 'passing_marks': quiz.passing,
-                'marks_obtained': attempt.score,  # The marks the employee got
+                'marks_obtained': float(attempt.score),  # The marks the employee got
                 'total_marks': quiz.total_marks,  # Full marks for the quiz
                 'time_taken': time_taken_str,  # Time taken to complete the quiz in hh:mm:ss format
                 'is_passed': attempt.is_passed,  # Whether the user passed the quiz
