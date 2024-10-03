@@ -36,6 +36,7 @@ class Employee(models.Model):
     d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id')
 
 
+
 class Adhaar(models.Model):
     A_Id = models.BigAutoField(primary_key=True)
     adhaar_no = models.BigIntegerField()
@@ -868,18 +869,7 @@ class Work_exp(models.Model):
     leave_reason = models.TextField(null=True, blank=True)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid')
 
-#added
-class OTPVerification(models.Model):
-    emp_emailid = models.EmailField(unique=True)
-    otp = models.CharField(max_length=6)
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"{self.emp_emailid} - {self.otp}"
-
-    class Meta:
-        verbose_name = "OTP Verification"
-        verbose_name_plural = "OTP Verifications"
 
 #added
 class OTPVerification(models.Model):
@@ -941,3 +931,99 @@ class QuizAttempt(models.Model):
     total_correct = models.IntegerField(default=0)  # Add this field
     total_unattempted = models.IntegerField(default=0)  # Add this field
     total_wrong = models.IntegerField(default=0)  # Add this field
+#added
+
+
+
+
+class Itdeclaration80d_new1(models.Model):
+    Emp_id = models.CharField(max_length=50, primary_key=True)
+    Investment1 = models.CharField(max_length=100, default='Medi claim Policy for Self, Spouse, Children-80D')
+    Investment1_Amount = models.IntegerField(default=0)
+    Investment2 = models.CharField(max_length=100, default='Medi claim Policy for Self, Spouse, Children for senior citizen-80D')
+    Investment2_Amount = models.IntegerField(default=0)
+    Investment3 = models.CharField(max_length=100, default='Medi claim Policy for Parents-80D')
+    Investment3_Amount = models.IntegerField(default=0)
+    Investment4 = models.CharField(max_length=100, default='Medi claim Policy or Medical Bills for parents for senior citizen-80D')
+    Investment4_Amount = models.IntegerField(default=0)
+    Investment5 = models.CharField(max_length=100, default='Preventive health check up - 80D')
+    Investment5_Amount = models.IntegerField(default=0)
+    Investment6 = models.CharField(max_length=100, default='Preventive health check up for parents - 80D')
+    Investment6_Amount = models.IntegerField(default=0)
+    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', null=True)
+
+class Itdeclaration_oie_new1(models.Model):
+    Emp_id = models.CharField(max_length=50, primary_key=True)
+    Investment1 = models.CharField(max_length=50, default='Additional Exemptions on voluntary NPS')
+    Investment1_Amount = models.IntegerField(default=0)
+    Investment2 = models.CharField(max_length=50, default='Rajiv Gandhi Equity savings scheme')
+    Investment2_Amount = models.IntegerField(default=0)
+    Investment3 = models.CharField(max_length=50, default='Treatment of dependent with disability')
+    Investment3_Amount = models.IntegerField(default=0)
+    Investment4 = models.CharField(max_length=50, default='Treatment of dependent with severe disability')
+    Investment4_Amount = models.IntegerField(default=0)
+    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', null=True)
+
+class Itdeclaration_osi_new1(models.Model):
+    Emp_id = models.CharField(max_length=50, primary_key=True)
+    Investment1 = models.CharField(max_length=50, default='Income from other sources')
+    Investment1_Amount = models.IntegerField()
+    Investment2 = models.CharField(max_length=50, default='Interest Earned from Savings Deposit')
+    Investment2_Amount = models.IntegerField()
+    Investment3 = models.CharField(max_length=50, default='Interest Earned from Fixed Deposit')
+    Investment3_Amount = models.IntegerField()
+    Investment4 = models.CharField(max_length=50, default='Interest Earned from National Savings Certificates')
+    Investment4_Amount = models.IntegerField()
+    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', null=True) 
+
+class Salary1(models.Model):
+    sal_id = models.BigAutoField(primary_key=True)
+    payout_month = models.CharField(max_length=50)
+    effective_from = models.CharField(max_length=50, null=True, blank=True)
+    revision = models.IntegerField(null=True, blank=True)
+    basic = models.FloatField()
+    hra = models.FloatField()
+    conveyance = models.FloatField()
+    da = models.FloatField()
+    special_allowance = models.FloatField()
+    monthly_ctc = models.FloatField()
+    annual_ctc = models.FloatField()
+    Eligible_Deductions = models.FloatField()
+    Yearly_Taxable_Salary = models.FloatField()
+    Total_Tax_Liability = models.FloatField()
+    Monthly_TDS = models.FloatField()
+    Monthly_EPF = models.FloatField()
+    Monthly_Professional_Tax = models.FloatField()
+    Net_Salary = models.FloatField()
+    paymentmethod = models.CharField(max_length=50, default='Bank')
+    notes = models.CharField(max_length=50)
+    remarks = models.CharField(max_length=50)
+    holdsalary = models.IntegerField(default=0)
+    paid = models.IntegerField(default=0)
+    emp_emailid = models.ForeignKey('Bank_details', on_delete=models.CASCADE, db_column='emp_emailid', default=None, to_field='emp_emailid') 
+
+class Poifiles_new1(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    Emp_id = models.CharField(max_length=50)
+    Year = models.CharField(max_length=7)
+    Investment_1 = models.CharField(max_length=10, default='80C')
+    actualAmount_80C = models.IntegerField(default='0')
+    Doc_80C = models.CharField(max_length=255, null=True)
+    Status1 = models.CharField(max_length=20, default='Pending')
+    Investment_2 = models.CharField(max_length=4, default='80D')
+    actualAmount_80D = models.IntegerField(default='0')
+    Doc_80D = models.CharField(max_length=255, null=True)
+    Status2 = models.CharField(max_length=20, default='Pending')
+    Investment_3 = models.CharField(max_length=4, default='OIE')
+    OIE_actualAmount = models.IntegerField(default='0')
+    OIE_Doc = models.CharField(max_length=255, null=True)
+    Status3 = models.CharField(max_length=20, default='Pending')
+    Investment_4 = models.CharField(max_length=4, default='OSI')
+    OSI_actualAmount = models.IntegerField(default='0')
+    OSI_Doc = models.CharField(max_length=255, null=True)
+    Status4 = models.CharField(max_length=20, default='Pending')
+    class Meta:
+        indexes = [
+            models.Index(fields=['Emp_id']),
+        ]
+    Emp_id = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None)          

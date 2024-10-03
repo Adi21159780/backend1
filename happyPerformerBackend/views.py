@@ -19,6 +19,7 @@ from django.db.models import Q
 from django.db.models import Sum
 from django.core.files.uploadedfile import UploadedFile
 from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
@@ -60,6 +61,25 @@ import os
 #     return decorator
 
 from django.core.files.storage import default_storage
+from datetime import timedelta
+from functools import wraps
+from django.utils.decorators import method_decorator
+import random, string
+from django.contrib.auth.hashers import make_password
+import urllib.parse
+import logging
+from django.core.serializers import serialize
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
+
+
+
+
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
+
 
 @csrf_exempt
 def Home(request):
@@ -163,9 +183,78 @@ def Logout(request):
 
 # NOTE
 # ***Department name should contain Super Manager at last ***
+
+    
+
+    
+# @csrf_exempt
+# def Register(request):
+#     if request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+
+#             # Extract company details
+#             name = data.get('companyName')
+#             addr = data.get('companyAddress')
+#             phone = data.get('companyPhone')
+#             dept_names_str = data.get('deptName')
+#             dept_names = [name.strip() for name in dept_names_str.split(',')]
+
+#             # Extract employee details
+#             emp_name = data.get('empName')
+#             emp_email = data.get('empMail')
+#             emp_phone = data.get('empNum')
+#             emp_pwd = data.get('emp_pwd', 'changeme')  # Default to 'changeme' if not provided
+#             emp_role = data.get('empRole', 'Super Manager')  # Default to 'Super Manager' if not provided
+#             emp_skills = data.get('empSkills')
+
+#             # Check if the company with the exact details exists
+#             try:
+#                 company = Company.objects.get(c_name=name, c_addr=addr, c_phone=phone)
+#                 created = False
+#             except Company.DoesNotExist:
+#                 company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
+#                 created = True
+
+#             # Only create departments if the company is newly created
+#             if created:
+#                 # Create departments and get the first department's ID
+#                 first_dept_id = None
+#                 for dept_name in dept_names:
+#                     # Create department with the Company instance
+#                     new_dept = Department.objects.create(d_name=dept_name, c_id=company)
+#                     if first_dept_id is None:
+#                         first_dept_id = new_dept
+#             else:
+#                 # If the company already exists, use the existing first department ID
+#                 first_dept_id = Department.objects.filter(c_id=company).first()
+                
+#                 if not first_dept_id:
+#                     return JsonResponse({'error': 'No departments found for existing company'}, status=404)
+
+#             # Create the employee
+#             Employee.objects.create(
+#                 emp_name=emp_name,
+#                 emp_emailid=emp_email,
+#                 emp_skills=emp_skills,
+#                 emp_role=emp_role,
+#                 emp_phone=emp_phone,
+#                 emp_pwd=emp_pwd,
+#                 d_id=first_dept_id
+#             )
+
+#             return JsonResponse({'message': 'Company registration successful'}, status=201)
+
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+
+#     else:
+#         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+    
 @csrf_exempt
 def Register(request):
     if request.method == 'POST':
+        
         try:
             data = json.loads(request.body)
 
@@ -218,6 +307,11 @@ def Register(request):
                 emp_pwd=emp_pwd,
                 d_id=first_dept_id
             )
+
+            return JsonResponse({'message': 'Company registration successful'}, status=201)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
             return JsonResponse({'message': 'Company registration successful'}, status=201)
 
@@ -523,6 +617,42 @@ def FAQsView(request):
 
 @csrf_exempt
 def ApplyLeave(request):
+    # if request.method == 'GET':
+    #     # Step 1: Fetch Employee Data from Session
+    #     emp_email = request.session.get('emp_emailid')
+    #     if not emp_email:
+    #         print("User not authenticated. No email in session.")
+    #         return JsonResponse({'error': 'User not authenticated'}, status=401)
+
+    #     # Step 2: Fetch Employee's Leave Details
+    #     try:
+    #         employee = Employee.objects.get(emp_emailid=emp_email)
+    #         print(f"Employee found: {employee}")
+    #     except Employee.DoesNotExist:
+    #         print(f"Employee with email {emp_email} not found.")
+    #         return JsonResponse({'error': 'Employee not found'}, status=404)
+
+    #     # Step 3: Fetch and Format Leave Data
+    #     try:
+    #         leaves = Tblleaves.objects.filter(emp_emailid=employee)
+    #         leave_data = [
+    #             {
+    #                 'type': leave.LeaveType.LeaveType,
+    #                 'fromDate': leave.FromDate,
+    #                 'toDate': leave.ToDate,
+    #                 'days': leave.Days,
+    #                 'description': leave.Description,
+    #                 'status': leave.Status,
+    #             }
+    #             for leave in leaves
+    #         ]
+    #         return JsonResponse(leave_data, safe=False, status=200)
+    #     except Exception as e:
+    #         print(f"Error fetching leave data: {e}")
+    #         return JsonResponse({'error': 'Error fetching leave data'}, status=500)
+
+    # elif request.method == 'POST':
+        # Step 1: Parse JSON Data
     if request.method == 'GET':
         # Step 1: Fetch Employee Data from Session
         emp_email = request.session.get('emp_emailid')
@@ -601,6 +731,7 @@ def ApplyLeave(request):
             return JsonResponse({'error': 'Invalid date format'}, status=400)
 
         # Step 5: Fetch Leave Type
+        # Step 5: Fetch Leave Type
         try:
             leave_type = Leavetype.objects.get(LeaveType__iexact=leavetype)
         except Leavetype.DoesNotExist:
@@ -619,15 +750,34 @@ def ApplyLeave(request):
         )
 
         # Step 7: Calculate Remaining Leaves
+        # Step 7: Calculate Remaining Leaves
         leave_limit_field = leavetype.lower() + 'leave'
         leave_limit = getattr(leave_count, leave_limit_field, 0)
+        print(f"Leave limit: {leave_limit} for leave type: {leave_limit_field}")
         print(f"Leave limit: {leave_limit} for leave type: {leave_limit_field}")
 
         final = leave_type.Limit - leave_limit - days
         if final < 0:
             print("Exceeding leave limits.")
+            print("Exceeding leave limits.")
             return JsonResponse({'error': 'Exceeding leave limits'}, status=400)
 
+        # Step 8: Create Leave Entry
+        try:
+            leave = Tblleaves.objects.create(
+                LeaveType=leave_type,
+                FromDate=fromdate,
+                ToDate=todate,
+                Days=days,
+                Description=description,
+                Status=0,
+                IsRead=0,
+                emp_emailid=employee
+            )
+            print("Leave successfully created.")
+        except Exception as e:
+            print(f"Error creating leave entry: {e}")
+            return JsonResponse({'error': 'Error creating leave entry'}, status=500)
         # Step 8: Create Leave Entry
         try:
             leave = Tblleaves.objects.create(
@@ -1276,27 +1426,42 @@ def ReportingStructureForm(request):
 @role_required(['HR', 'Manager', 'Super Manager'])
 def CeoHrAnnouncements(request):
     company_id = request.session.get('c_id')
+    print(f"Company ID from session: {company_id}")  # Debugging
 
     if not company_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'POST':
-        sender = request.POST['email']
-        cc = request.POST.get('cc', '').split(',') if request.POST.get('cc') else []  # Split and format CC
+        sender = request.POST.get('email')  # Correct syntax for calling 'get'
+        cc = request.POST.get('cc', '')
         departments = request.POST.getlist('dept')
-        subject = request.POST['subject']
-        message = request.POST['msg']
+        subject = request.POST.get('subject')
+        message = request.POST.get('message')
         files = request.FILES.getlist('files')
         send_to_all = 'check' in request.POST and request.POST['check'] == 'yes'
 
-        emails_sent = 0
-        separator = getattr(settings, 'EMAIL_SEPARATOR', ',')  # Ensure EMAIL_SEPARATOR has a default value
+        # Debugging statements to verify POST data
+        print(f"Sender Email: {sender}")
+        print(f"CC Email: {cc}")
+        print(f"Departments: {departments}")
+        print(f"Subject: {subject}")
+        print(f"Message: {message}")
+        print(f"Files: {files}")
+        print(f"Send to All: {send_to_all}")
 
+
+        emails_sent = 0
+        separator = getattr(settings, 'EMAIL_SEPARATOR', ',')  # Use default if not set
+        print(f"Email Separator: {separator}")  # Debugging
         try:
             if send_to_all:
-                employees = Employee.objects.filter(d_id__c_id=company_id, status='Active')
+                employees = Employee.objects.filter(d_id__c_id=company_id, Status='Active')
+                print(f"Employees (send_to_all=True): {employees.count()} found")  # Debugging
             else:
-                employees = Employee.objects.filter(d_id__in=departments, status='Active')
+                employees = Employee.objects.filter(d_id__in=departments, Status='Active')
+                print(f"Employees (send_to_all=False): {employees.count()} found")  # Debugging
+            for employee in employees:
+                print(f"Employee Email: {employee.emp_emailid}")  # Debugging
 
             for employee in employees:
                 email = EmailMessage(
@@ -1311,6 +1476,7 @@ def CeoHrAnnouncements(request):
                     email.attach(file.name, file.read(), file.content_type)
 
                 email.send()
+                print(f"Email sent to: {employee.emp_emailid}")  # Debugging
                 emails_sent += 1
 
             return JsonResponse({'success': f'Total {emails_sent} emails sent successfully'}, status=200)
@@ -1321,6 +1487,57 @@ def CeoHrAnnouncements(request):
             return JsonResponse({'error': 'An error occurred while sending emails. Check server logs for details.'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def CeoHrAnnouncements(request):
+#     company_id = request.session.get('c_id')
+#     if not company_id:
+#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+#     if request.method == 'GET':
+#         # Fetch departments for the logged-in company
+#         departments = Department.objects.filter(c_id=company_id).values('d_id', 'd_name')
+#         return JsonResponse(list(departments), safe=False)
+
+#     if request.method == 'POST':
+#         sender = request.POST.get('email')
+#         cc = request.POST.get('cc', '')
+#         departments = request.POST.getlist('dept')  # Expecting d_id values
+#         subject = request.POST.get('subject')
+#         message = request.POST.get('message')
+#         files = request.FILES.getlist('files')
+#         send_to_all = request.POST.get('check') == 'yes'
+
+#         try:
+#             if send_to_all:
+#                 employees = Employee.objects.filter(d_id__c_id=company_id, Status='Active')
+#             else:
+#                 employees = Employee.objects.filter(d_id__in=departments, Status='Active')
+
+#             emails_sent = 0
+#             for employee in employees:
+#                 email = EmailMessage(
+#                     subject=subject,
+#                     body=message,
+#                     from_email=sender,
+#                     to=[employee.emp_emailid],
+#                     cc=[cc] if cc else None,
+#                 )
+#                 for file in files:
+#                     email.attach(file.name, file.read(), file.content_type)
+#                 email.send()
+#                 emails_sent += 1
+
+#             return JsonResponse({'success': f'Total {emails_sent} emails sent successfully'}, status=200)
+        
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+
+#     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 
 @csrf_exempt
@@ -2428,8 +2645,17 @@ def UpdatePersonalDetails(request):
     except Employee.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Employee not found'}, status=404)
 
+    # print(f"Logged in user email: {emp_emailid}")  # Debugging
+
+    # Fetch the Employee instance using the logged-in user's email
+    try:
+        employee = Employee.objects.get(emp_emailid=emp_emailid)
+    except Employee.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Employee not found'}, status=404)
+
     if request.method == 'GET':
         try:
+            # personal_detail = Personal_details.objects.get(mail=employee)
             personal_detail = Personal_details.objects.get(mail=employee)
             data = {
                 'first_name': personal_detail.first_name,
@@ -2454,6 +2680,7 @@ def UpdatePersonalDetails(request):
         try:
             data = json.loads(request.body)
 
+            # Extract data from request body
             # Extract data from request body
             first_name = data.get('first_name')
             last_name = data.get('last_name')
@@ -2593,6 +2820,7 @@ def UpdateBankDetails(request):
             }
             return JsonResponse({'status': 'success', 'data': data})
 
+        
         except Bank_details.DoesNotExist:
             return JsonResponse({'status': 'error', 'message': 'Bank details not found'}, status=404)
 
@@ -3914,6 +4142,23 @@ def OffCyclePayments(request):
             return JsonResponse({"message": "Off-cycle payment inserted successfully"}, status=201)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
+    elif request.method == 'DELETE':
+        try:
+            # Extract the ID from the URL
+            payment_id = request.GET.get('id')
+
+            if not payment_id:
+                return JsonResponse({"error": "Payment ID is required"}, status=400)
+
+            # Fetch the off-cycle payment by ID
+            off_cycle_payment = Off_cycle.objects.get(id=payment_id)
+            off_cycle_payment.delete()
+
+            return JsonResponse({"message": "Off-cycle payment deleted successfully"}, status=200)
+        except Off_cycle.DoesNotExist:
+            return JsonResponse({"error": "Off-cycle payment not found"}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)  
     else:
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
@@ -4050,16 +4295,76 @@ def CashChequeTransferPayout(request):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def HoldSalaryPayout(request):
+#     c_id = request.session.get('c_id')
+#     if not c_id:
+#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+#     if request.method == 'GET':
+#         try:
+#             payouts = Salary1.objects.filter().values('sal_id', 'holdsalary', 'emp_emailid__holder_name', 'emp_emailid__bank_name', 'emp_emailid__branch', 'emp_emailid__ifsc', 'emp_emailid__acc_no').distinct()
+
+#             payout_list = []
+#             for payout in payouts:
+#                 payout_dict = {
+#                     'sal_id': payout['sal_id'],
+#                     'holder_name': payout['emp_emailid__holder_name'],
+#                     'bank_name': payout['emp_emailid__bank_name'],
+#                     'branch': payout['emp_emailid__branch'],
+#                     'ifsc': payout['emp_emailid__ifsc'],
+#                     'acc_no': payout['emp_emailid__acc_no'],
+#                     'hold_salary': payout['holdsalary']
+#                 }
+#                 payout_list.append(payout_dict)
+
+#             return JsonResponse({'payouts': payout_list}, status=200)
+
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
+
+#     else:
+#         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+
+
+
+
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
 def HoldSalaryPayout(request):
     c_id = request.session.get('c_id')
+    
     if not c_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
+        emailid = request.GET.get('emailid')
+
+        # Decode URL-encoded email ID for debugging purposes
+        decoded_emailid = urllib.parse.unquote(emailid)
+        print(f"Decoded email ID: {decoded_emailid}")
+        
+        if not emailid:
+            return JsonResponse({'error': 'Email ID not provided'}, status=400)
+
         try:
-            payouts = Salary.objects.filter().values('sal_id', 'holdsalary', 'emp_emailid__holder_name', 'emp_emailid__bank_name', 'emp_emailid__branch', 'emp_emailid__ifsc', 'emp_emailid__acc_no').distinct()
+            payouts = Salary1.objects.filter(
+                emp_emailid=emailid
+            ).values(
+                'emp_emailid__holder_name',
+                'emp_emailid__bank_name',
+                'emp_emailid__branch',
+                'emp_emailid__ifsc',
+                'emp_emailid__acc_no',
+                'sal_id',
+                'holdsalary'
+            ).distinct()
+
+            if not payouts:
+                return JsonResponse({'error': 'No salary details found for this employee'}, status=404)
 
             payout_list = []
             for payout in payouts:
@@ -4070,83 +4375,184 @@ def HoldSalaryPayout(request):
                     'branch': payout['emp_emailid__branch'],
                     'ifsc': payout['emp_emailid__ifsc'],
                     'acc_no': payout['emp_emailid__acc_no'],
-                    'hold_salary': payout['holdsalary']
+                    'holdsalary': payout['holdsalary']
                 }
                 payout_list.append(payout_dict)
+                print("Payout List:")
+                for item in payout_list:
+                    print(item)
+
 
             return JsonResponse({'payouts': payout_list}, status=200)
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
-    else:
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def HoldSalary(request):
+#     c_id = request.session.get('c_id')
+#     emailid = request.GET.get('emailid')
+#     if not c_id:
+#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+#     if request.method == 'GET':
+#         try:
+#             emp_name = Salary1.objects.filter(emp_emailid=emailid).values('emp_emailid__holder_name').first()
+
+#             if not emp_name:
+#                 return JsonResponse({'error': 'Employee not found'}, status=404)
+#             return JsonResponse(emp_name, status=200)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
+
+#     elif request.method == 'POST':
+#         try:
+#             data = json.loads(request.body)
+#             hold_reason = data.get('hold_reason')
+#             remarks = data.get('remarks')
+
+#             if not hold_reason or not remarks:
+#                 return JsonResponse({'error': 'Hold reason and remarks are required'}, status=400)
+
+#             salary = Salary.objects.filter(emp_emailid=emailid, emp_emailid__emp_emailid__d_id__c_id=c_id).first()
+#             if not salary:
+#                 return JsonResponse({'error': 'Salary or Bank details not found for the given email ID'}, status=404)
+
+#             salary.holdsalary = 1
+#             salary.notes = hold_reason
+#             salary.remarks = remarks
+#             salary.save()
+
+#             return JsonResponse({'message': f'{salary.emp_emailid.holder_name} has been put on hold for salary.'}, status=200)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
+#     else:
+#         return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+
+
+
+
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
 def HoldSalary(request):
     c_id = request.session.get('c_id')
-    emailid = request.GET.get('emailid')
+
     if not c_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
         try:
-            emp_name = Salary.objects.filter(emp_emailid=emailid).values('emp_emailid__holder_name').first()
-            if not emp_name:
-                return JsonResponse({'error': 'Employee not found'}, status=404)
-            return JsonResponse(emp_name, status=200)
+            employees = Employee.objects.filter(d_id__c_id=c_id).values('emp_name', 'emp_emailid')
+            if not employees:
+                return JsonResponse({'error': 'No employees found for this company'}, status=404)
+            return JsonResponse({'employees': list(employees)}, status=200)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
-            hold_reason = data.get('hold_reason')
+            emp_emailid = data.get('employeeId')
+            hold_reason = data.get('holdReason')
             remarks = data.get('remarks')
 
-            if not hold_reason or not remarks:
-                return JsonResponse({'error': 'Hold reason and remarks are required'}, status=400)
+            if not emp_emailid or not hold_reason or not remarks:
+                return JsonResponse({'error': 'Employee ID, hold reason, and remarks are required'}, status=400)
 
-            salary = Salary.objects.filter(emp_emailid=emailid, emp_emailid__emp_emailid__d_id__c_id=c_id).first()
-            if not salary:
-                return JsonResponse({'error': 'Salary or Bank details not found for the given email ID'}, status=404)
+            # Retrieve the Bank_details instance for the given email
+            bank_details = Bank_details.objects.filter(emp_emailid=emp_emailid).first()
+            if not bank_details:
+                return JsonResponse({'error': 'Bank details not found for the given employee ID'}, status=404)
 
-            salary.holdsalary = 1
-            salary.notes = hold_reason
-            salary.remarks = remarks
-            salary.save()
+            # Find the salary record for the given employee and c_id
+            salary, created = Salary1.objects.update_or_create(
+                emp_emailid=bank_details,  # Use the Bank_details instance
+                defaults={
+                    'holdsalary': 1,
+                    'notes': hold_reason,
+                    'remarks': remarks
+                }
+            )
 
-            return JsonResponse({'message': f'{salary.emp_emailid.holder_name} has been put on hold for salary.'}, status=200)
+            message = 'Salary held successfully' if not created else 'Salary record created and held successfully'
+            return JsonResponse({'message': message}, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
+
+
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def UnholdSalary(request):
+#     c_id = request.session.get('c_id')
+#     emailid = request.GET.get('emailid')
+#     if not c_id:
+#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+#     if request.method == 'POST':
+#         try:
+#             salary = Salary1.objects.filter(emp_emailid=emailid, emp_emailid_emp_emailidd_id_c_id=c_id).first()
+#             if not salary:
+#                 return JsonResponse({'error': 'Salary or Bank details not found for the given email ID'}, status=404)
+
+#             salary.holdsalary = 0
+#             salary.save()
+
+#             return JsonResponse({'message': f'{salary.emp_emailid.holder_name} is no more on hold for salary.'}, status=200)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
+#     else:
+#         return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+
+
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Manager'])  # Assuming this decorator checks roles
 def UnholdSalary(request):
-    c_id = request.session.get('c_id')
-    emailid = request.GET.get('emailid')
+    c_id = request.session.get('c_id')  # Get the company ID from session
+    emailid = request.GET.get('emailid')  # Get employee email from GET parameters
+    
     if not c_id:
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'POST':
         try:
-            salary = Salary.objects.filter(emp_emailid=emailid, emp_emailid__emp_emailid__d_id__c_id=c_id).first()
-            if not salary:
-                return JsonResponse({'error': 'Salary or Bank details not found for the given email ID'}, status=404)
+            # Query to check if employee exists within the given company through their department
+            employee = Employee.objects.filter(emp_emailid=emailid, d_id__c_id=c_id).first()
+            
+            if not employee:
+                return JsonResponse({'error': 'Employee not found in the specified company'}, status=404)
 
+            # Now that we have the employee, we fetch their salary record
+            salary = Salary1.objects.filter(emp_emailid=employee.emp_emailid).first()
+
+            if not salary:
+                return JsonResponse({'error': 'Salary details not found for the given email ID'}, status=404)
+
+            # Unhold the salary by setting the holdsalary field to 0
             salary.holdsalary = 0
             salary.save()
 
-            return JsonResponse({'message': f'{salary.emp_emailid.holder_name} is no more on hold for salary.'}, status=200)
+            return JsonResponse({'message': f'{employee.emp_name} is no more on hold for salary.'}, status=200)
+        
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
-    else:
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
 
 
 @csrf_exempt
@@ -4206,8 +4612,11 @@ def HomeSalary(request):
 @csrf_exempt
 @role_required(['HR', 'Manager', 'Super Manager'])
 def AddSalary(request):
+    print("View reached")
     if request.method == 'POST':
-        emp_emailid = request.GET.get('emp_emaiid')
+        print("View reached")
+        emp_emailid = request.GET.get('emp_emailid')
+        print("View reached")
 
         try:
             employee = Employee.objects.get(emp_emailid=emp_emailid)
@@ -4249,7 +4658,6 @@ def AddSalary(request):
             special_allowance = monthly_ctc - (hra + conveyance + da + basic)
 
             annual_taxable = annual_ctc - eligible_deductions
-            tax_liability = tax_calculation_to_add_salary(age, annual_taxable)
             tax_liability = tax_calculation_to_add_salary(age, annual_taxable)
 
             monthly_tds = tax_liability / 12
@@ -4326,6 +4734,224 @@ def AddSalary(request):
 
         return JsonResponse(context)
 
+
+
+
+
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def AddSalary1(request):
+#     if request.method == 'GET':
+#         # Get company id from session
+#         c_id = request.session.get('c_id')
+#         if not c_id:
+#             return JsonResponse({'error': 'Company ID not found in session'}, status=400)
+
+#         # Retrieve all employees that belong to departments under this company
+#         employees = Employee.objects.filter(d_id__c_id=c_id)
+
+#         # Prepare employee data to return to the frontend
+#         employee_data = [{'emp_emailid': emp.emp_emailid, 'name': emp.emp_name} for emp in employees]
+
+#         return JsonResponse({'employees': employee_data})
+
+#     elif request.method == 'POST':
+#         data = json.loads(request.body)
+#         emp_emailid = data.get('emp_emailid')
+#         payout_month = data.get('payoutMonth')
+#         revision = int(data.get('revision', 0))
+#         annual_ctc = int(data.get('annualCTC', 0))
+#         payment_method = data.get('paymentMethod')
+#         employee_remarks = data.get('employeeRemarks')
+#         notes = data.get('notes')
+#         effective_from = data.get('effectiveFrom')
+
+#         c_id = request.session.get('c_id')
+
+#         if not emp_emailid or not c_id:
+#             return JsonResponse({'error': 'Missing employee or company details'}, status=400)
+
+#         try:
+#             # Retrieve the employee's bank details from Bank_details using emp_emailid
+#             bank_details = Bank_details.objects.get(emp_emailid__emp_emailid=emp_emailid)
+
+#             # Retrieve any additional employee information if necessary
+#             personal_details = Personal_details.objects.get(mail__emp_emailid=emp_emailid)
+#             poifiles_new = Poifiles_new1.objects.get(Emp_id__emp_emailid=emp_emailid)
+
+#             # # Calculate salary details
+#             age = datetime.now().year - personal_details.birth_date.year
+#             actual80c = poifiles_new.actualAmount_80C
+#             actual80d = poifiles_new.actualAmount_80D
+#             actualoie = poifiles_new.OIE_actualAmount
+#             actualosi = poifiles_new.OSI_actualAmount
+
+#             eligible_deductions = actual80c + actual80d + actualoie + actualosi
+
+#             # If revision is provided, apply it to the annual CTC
+#             annual_ctc += annual_ctc * (revision / 100)
+#             monthly_ctc = annual_ctc / 12
+#             basic = monthly_ctc * 0.4
+#             hra = basic * 0.4
+#             conveyance = 1600
+#             da = 0
+#             special_allowance = monthly_ctc - (hra + conveyance + da + basic)
+
+#             # Calculate tax liability
+#             annual_taxable = annual_ctc - eligible_deductions
+#             tax_liability = tax_calculation_to_add_salary(age, annual_taxable)
+
+#             monthly_tds = tax_liability / 12
+#             monthly_epf = basic * 0.12
+#             monthly_prof_tax = 200
+           
+#             net_salary = monthly_ctc - (monthly_tds + monthly_epf + monthly_prof_tax)
+
+#             # Save salary details to the database
+#             salary_instance = Salary1.objects.create(
+#                 emp_emailid=bank_details,  # Assign Bank_details instance to Salary
+#                 basic=basic,
+#                 hra=hra,
+#                 conveyance=conveyance,
+#                 da=da,
+#                 special_allowance=special_allowance,
+#                 monthly_ctc=monthly_ctc,
+#                 annual_ctc=annual_ctc,
+#                 Eligible_Deductions=eligible_deductions,
+#                 Yearly_Taxable_Salary=annual_taxable,
+#                 Total_Tax_Liability=tax_liability,
+#                 Monthly_TDS=monthly_tds,
+#                 Monthly_EPF=monthly_epf,
+#                 Monthly_Professional_Tax=monthly_prof_tax,
+#                 Net_Salary=net_salary,
+#                 payout_month=payout_month,
+#                 effective_from=effective_from,
+#                 notes=notes,
+#                 remarks=employee_remarks,
+#                 revision=revision,
+#                 paymentmethod=payment_method
+#             )
+#             salary_instance.save()
+
+#             return JsonResponse({'message': 'Salary details saved successfully.'})
+
+#         except Bank_details.DoesNotExist:
+#             return JsonResponse({'error': 'Employee bank details not found.'}, status=404)
+
+#         except Employee.DoesNotExist:
+#             return JsonResponse({'error': 'Employee not found or does not belong to this company.'}, status=404)
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def AddSalary1(request):
+    if request.method == 'GET':
+        # Get company id from session
+        c_id = request.session.get('c_id')
+        if not c_id:
+            return JsonResponse({'error': 'Company ID not found in session'}, status=400)
+
+        # Retrieve all employees that belong to departments under this company
+        employees = Employee.objects.filter(d_id__c_id=c_id)
+
+        # Prepare employee data to return to the frontend
+        employee_data = [{'emp_emailid': emp.emp_emailid, 'name': emp.emp_name} for emp in employees]
+
+        return JsonResponse({'employees': employee_data})
+
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        emp_emailid = data.get('emp_emailid')
+        payout_month = data.get('payoutMonth')
+        revision = int(data.get('revision', 0))
+        annual_ctc = int(data.get('annualCTC', 0))
+        payment_method = data.get('paymentMethod')
+        employee_remarks = data.get('employeeRemarks')
+        notes = data.get('notes')
+        effective_from = data.get('effectiveFrom')
+
+        c_id = request.session.get('c_id')
+
+        if not emp_emailid or not c_id:
+            return JsonResponse({'error': 'Missing employee or company details'}, status=400)
+
+        try:
+            # Retrieve the employee's bank details from Bank_details using emp_emailid
+            bank_details = Bank_details.objects.get(emp_emailid__emp_emailid=emp_emailid)
+
+            # Retrieve any additional employee information if necessary
+            personal_details = Personal_details.objects.get(mail__emp_emailid=emp_emailid)
+            poifiles_new = Poifiles_new1.objects.get(Emp_id__emp_emailid=emp_emailid)
+
+            # Calculate salary details
+            age = datetime.now().year - personal_details.birth_date.year
+            actual80c = poifiles_new.actualAmount_80C
+            actual80d = poifiles_new.actualAmount_80D
+            actualoie = poifiles_new.OIE_actualAmount
+            actualosi = poifiles_new.OSI_actualAmount
+
+            eligible_deductions = actual80c + actual80d + actualoie + actualosi
+
+            # If revision is provided, apply it to the annual CTC
+            annual_ctc += annual_ctc * (revision / 100)
+            monthly_ctc = annual_ctc / 12
+            basic = monthly_ctc * 0.4
+            hra = basic * 0.4
+            conveyance = 1600
+            da = 0
+            special_allowance = monthly_ctc - (hra + conveyance + da + basic)
+
+            # Calculate tax liability
+            annual_taxable = annual_ctc - eligible_deductions
+            tax_liability = tax_calculation_to_add_salary(age, annual_taxable)
+
+            monthly_tds = tax_liability / 12
+            monthly_epf = basic * 0.12
+            monthly_prof_tax = 200
+
+            net_salary = monthly_ctc - (monthly_tds + monthly_epf + monthly_prof_tax)
+
+            # Check if salary record exists for the given employee and payout month
+            salary_instance, created = Salary1.objects.update_or_create(
+                emp_emailid=bank_details,  # Use Bank_details instance
+                # payout_month=payout_month,  # Use the payout month for identifying the record
+                defaults={
+                    'basic': basic,
+                    'hra': hra,
+                    'conveyance': conveyance,
+                    'da': da,
+                    'special_allowance': special_allowance,
+                    'monthly_ctc': monthly_ctc,
+                    'annual_ctc': annual_ctc,
+                    'Eligible_Deductions': eligible_deductions,
+                    'Yearly_Taxable_Salary': annual_taxable,
+                    'Total_Tax_Liability': tax_liability,
+                    'Monthly_TDS': monthly_tds,
+                    'Monthly_EPF': monthly_epf,
+                    'Monthly_Professional_Tax': monthly_prof_tax,
+                    'Net_Salary': net_salary,
+                    'effective_from': effective_from,
+                    'notes': notes,
+                    'remarks': employee_remarks,
+                    'revision': revision,
+                    'paymentmethod': payment_method
+                }
+            )
+
+            if created:
+                message = 'Salary details created successfully.'
+            else:
+                message = 'Salary details updated successfully.'
+
+            return JsonResponse({'message': message})
+
+        except Bank_details.DoesNotExist:
+            return JsonResponse({'error': 'Employee bank details not found.'}, status=404)
+
+        except Employee.DoesNotExist:
+            return JsonResponse({'error': 'Employee not found or does not belong to this company.'}, status=404)
+
+
+
 # Function to calculate tax while adding salary. Check Function above Name: AddSalary
 def tax_calculation_to_add_salary(age, annual_taxable):
     tax = 0
@@ -4401,38 +5027,70 @@ def SalaryRevisionHistory(request):
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
-        sid = request.GET.get('id')
-        if not sid:
-            return JsonResponse({'error': 'Employee ID not provided'}, status=400)
+        emailid=request.GET.get('emailid')
+
+        decoded_emailid = urllib.parse.unquote(emailid)
+        print(f"Decoded email ID: {decoded_emailid}")
+
+        if not emailid:
+            return JsonResponse({'error':'Email ID not provided'}, status=400)
 
         try:
-            salaries = Salary.objects.filter(emp_emailid=sid, revision__isnull=False, revision__gt=0)
+            # Retrieve salaries based on employee email ID
+            salaries = Salary1.objects.filter(
+               emp_emailid=emailid
+            ).values(
+                    'sal_id',         
+                    'emp_emailid__emp_emailid',                     
+                    'revision',                     
+                    'effective_from',              
+                    'basic',           
+                    'hra', 
+                    'conveyance',             
+                    'da',                     
+                    'special_allowance',                      
+                    'annual_ctc',         
+                    'paymentmethod',
+                    'notes',
+                    'remarks'                                                                                       
+            ).distinct()
+
+            if not salaries:
+                return JsonResponse({'error': 'No salary details found for this employee'}, status=404)
 
             salary_list = []
             for salary in salaries:
                 salary_dict = {
-                    'emp_emailid': salary.emp_emailid,
-                    'revision_percentage': salary.revision,
-                    'effective_from': salary.effective_from,
-                    'basic': salary.basic,
-                    'hra': salary.hra,
-                    'conveyance': salary.conveyance,
-                    'da': salary.da,
-                    'allowance': salary.special_allowance,
-                    'annual_ctc': salary.annual_ctc,
-                    'payment_method': salary.paymentmethod,
-                    'notes': salary.notes,
-                    'remarks': salary.remarks
+                    'sal_id': salary['sal_id'],  # Correctly access email ID from Bank_details
+                    'emp_emailid': salary['emp_emailid__emp_emailid'],  # Correctly access email ID from Bank_details
+                    'revision': salary['revision'],
+                    'effective_from': salary['effective_from'],
+                    'basic': salary['basic'],
+                    'hra': salary['hra'],
+                    'conveyance': salary['conveyance'],
+                    'da': salary['da'],
+                    'special_allowance': salary['special_allowance'],
+                    'annual_ctc': salary['annual_ctc'],
+                    'paymentmethod': salary['paymentmethod'],
+                    'notes': salary['notes'],
+                    'remarks': salary['remarks'],
                 }
                 salary_list.append(salary_dict)
+                print("salary list: ")
+                for item in salary_list:
+                    print(item)
 
             return JsonResponse({'salaries': salary_list}, status=200)
 
-        except Salary.DoesNotExist:
-            return JsonResponse({'error': 'Salary records not found for the provided employee ID'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+
 
 
 @csrf_exempt
@@ -4443,36 +5101,106 @@ def DisplaySalaryDetails(request):
         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
 
     if request.method == 'GET':
-        sid = request.GET.get('id')
-        if not sid:
-            return JsonResponse({'error': 'Employee ID not provided'}, status=400)
+        emailid=request.GET.get('emailid')
 
+        decoded_emailid = urllib.parse.unquote(emailid)
+        print(f"Decoded email ID: {decoded_emailid}")
+
+        if not emailid:
+            return JsonResponse({'error':'Email ID not provided'}, status=400)
         try:
-            salaries = Salary.objects.filter(emp_emailid=sid)
+           # Retrieve salaries based on employee email ID
+            salaries = Salary1.objects.filter(
+               emp_emailid=emailid
+            ).values(
+                    'emp_emailid__emp_emailid',         # Employee email ID from Bank_details model
+                    'payout_month',                     # Payout month
+                    'monthly_ctc',                      # Monthly CTC
+                    'Eligible_Deductions',              # Eligible Deductions
+                    'Yearly_Taxable_Salary',            # Yearly Taxable Salary
+                    'Total_Tax_Liability',              # Total Tax Liability
+                    'Monthly_TDS',                      # Monthly TDS
+                    'Monthly_EPF',                      # Monthly EPF
+                    'Monthly_Professional_Tax',         # Monthly Professional Tax
+                    'Net_Salary'                        # Net Salary
+            ).distinct()
 
+            if not salaries:
+                return JsonResponse({'error': 'No salary details found for this employee'}, status=404)
+            
             salary_list = []
             for salary in salaries:
                 salary_dict = {
-                    'emp_emailid': salary.emp_emailid,
-                    'payout_month': salary.payout_month,
-                    'monthly_ctc': salary.monthly_ctc,
-                    'Eligible_Deductions': salary.Eligible_Deductions,
-                    'Yearly_Taxable_Salary': salary.Yearly_Taxable_Salary,
-                    'Total_Tax_Liability': salary.Total_Tax_Liability,
-                    'Monthly_TDS': salary.Monthly_TDS,
-                    'Monthly_EPF': salary.Monthly_EPF,
-                    'Monthly_Professional_Tax': salary.Monthly_Professional_Tax,
-                    'Net_Salary': salary.Net_Salary,
+                    'emp_emailid': salary['emp_emailid__emp_emailid'],  # Correctly access email ID from Bank_details
+                    'payout_month': salary['payout_month'],
+                    'monthly_ctc': salary['monthly_ctc'],
+                    'Eligible_Deductions': salary['Eligible_Deductions'],
+                    'Yearly_Taxable_Salary': salary['Yearly_Taxable_Salary'],
+                    'Total_Tax_Liability': salary['Total_Tax_Liability'],
+                    'Monthly_TDS': salary['Monthly_TDS'],
+                    'Monthly_EPF': salary['Monthly_EPF'],
+                    'Monthly_Professional_Tax': salary['Monthly_Professional_Tax'],
+                    'Net_Salary': salary['Net_Salary'],
                 }
                 salary_list.append(salary_dict)
+                print("salary list: ")
+                for item in salary_list:
+                    print(item)
 
             return JsonResponse({'salaries': salary_list}, status=200)
 
-        except Salary.DoesNotExist:
-            return JsonResponse({'error': 'Salary records not found for the provided employee ID'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+
+# @csrf_exempt
+# @role_required(['HR', 'Manager', 'Super Manager'])
+# def DisplaySalaryDetails(request):
+#     c_id = request.session.get('c_id')
+#     if not c_id:
+#         return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+#     if request.method == 'GET':
+#         # sid = request.GET.get('id')
+#         # if not sid:
+#         #     return JsonResponse({'error': 'Employee ID not provided'}, status=400)
+
+#         try:
+#             salaries = Salary1.objects.filter(emp_emailid__emp_emailid=sid)
+
+#             salary_list = []
+#             for salary in salaries:
+#                 salary_dict = {
+#                     'emp_emailid': salary.emp_emailid.emp_emailid,  # Accessing the email id through Bank_details
+#                     'payout_month': salary.payout_month,
+#                     'monthly_ctc': salary.monthly_ctc,
+#                     'Eligible_Deductions': salary.Eligible_Deductions,
+#                     'Yearly_Taxable_Salary': salary.Yearly_Taxable_Salary,
+#                     'Total_Tax_Liability': salary.Total_Tax_Liability,
+#                     'Monthly_TDS': salary.Monthly_TDS,
+#                     'Monthly_EPF': salary.Monthly_EPF,
+#                     'Monthly_Professional_Tax': salary.Monthly_Professional_Tax,
+#                     'Net_Salary': salary.Net_Salary,
+#                 }
+#                 salary_list.append(salary_dict)
+
+#             return JsonResponse({'salaries': salary_list}, status=200)
+
+#         except Salary1.DoesNotExist:
+#             return JsonResponse({'error': 'Salary records not found for the provided employee ID'}, status=404)
+
+#     else:
+#         return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+
+
+
 
 
 @csrf_exempt
@@ -5088,7 +5816,6 @@ def EmployeeMaster(request):
         'employees': list(employees)
     }
 
-    return JsonResponse(data)
     
 
 @csrf_exempt
@@ -7097,3 +7824,323 @@ def AttemptedQuizzes(request):
         return JsonResponse({'quizzes': quizzes_data}, status=200)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+
+
+
+
+
+
+# Utility function to get the employee object
+def get_employee(email):
+    try:
+        return Employee.objects.get(emp_emailid=email)
+    except Employee.DoesNotExist:
+        return None
+
+
+        
+@csrf_exempt
+def investment_80C(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+
+        if employee:
+            # Save to ITDeclaration80c
+            ITDeclaration80c.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('type', 'Life Insurance Premium'),
+                Investment1_Amount=data.get('amount', 0),
+            )
+            
+            # Save or update Poifiles_new
+            poifile, created = Poifiles_new1.objects.get_or_create(
+                Emp_id=employee,
+                defaults={
+                    'Year': data.get('year', '2024'),
+                    'Investment_1': '80C',
+                    'actualAmount_80C': data.get('amount', 0),
+                    'Doc_80C': data.get('doc', ''),
+                    'Status1': 'Pending'
+                }
+            )
+            if not created:
+                poifile.actualAmount_80C = data.get('amount', 0)
+                poifile.Doc_80C = data.get('doc', '')
+                poifile.save()
+
+            return JsonResponse({"message": "Investment 80C data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+
+
+
+
+@csrf_exempt
+def investment_80D(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+
+        if employee:
+            # Save to Itdeclaration80d_new1
+            Itdeclaration80d_new1.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('type', 'Medi claim Policy for Self,Spouse,Children-80D'),
+                Investment1_Amount=data.get('amount', 0),
+                emp_emailid=employee,
+            )
+            
+            # Save or update Poifiles_new
+            poifile, created = Poifiles_new1.objects.get_or_create(
+                Emp_id=employee,
+                defaults={
+                    'Year': data.get('year', '2024'),
+                    'Investment_2': '80D',
+                    'actualAmount_80D': data.get('amount', 0),
+                    'Doc_80D': data.get('doc', ''),
+                    'Status2': 'Pending'
+                }
+            )
+            if not created:
+                poifile.actualAmount_80D = data.get('amount', 0)
+                poifile.Doc_80D = data.get('doc', '')
+                poifile.save()
+
+            return JsonResponse({"message": "Investment 80D data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+
+
+
+        
+@csrf_exempt
+def other_investments(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+
+        if employee:
+            # Save to Itdeclaration_oie_new1
+            Itdeclaration_oie_new1.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('type', 'Additional Exemptions on voluntary NPS'),
+                Investment1_Amount=data.get('amount', 0),
+                emp_emailid=employee,
+            )
+            
+            # Save or update Poifiles_new
+            poifile, created = Poifiles_new1.objects.get_or_create(
+                Emp_id=employee,
+                defaults={
+                    'Year': data.get('year', '2024'),
+                    'Investment_3': 'OIE',
+                    'OIE_actualAmount': data.get('amount', 0),
+                    'OIE_Doc': data.get('doc', ''),
+                    'Status3': 'Pending'
+                }
+            )
+            if not created:
+                poifile.OIE_actualAmount = data.get('amount', 0)
+                poifile.OIE_Doc = data.get('doc', '')
+                poifile.save()
+
+            return JsonResponse({"message": "Other investments data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+       
+
+
+@csrf_exempt
+def other_income(request):
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        employee = get_employee(emp_emailid)
+
+        if employee:
+            # Save to Itdeclaration_osi_new1
+            Itdeclaration_osi_new1.objects.create(
+                Emp_id=employee.emp_emailid,
+                Investment1=data.get('income', 'Income from other sources'),
+                Investment1_Amount=data.get('amount', 0),
+                Investment2_Amount=data.get('savingsInterest', 0),
+                Investment3_Amount=data.get('fixedDepositInterest', 0),
+                Investment4_Amount=data.get('nsCertificatesInterest', 0),
+                emp_emailid=employee,
+            )
+            
+            # Save or update Poifiles_new
+            poifile, created = Poifiles_new1.objects.get_or_create(
+                Emp_id=employee,
+                defaults={
+                    'Year': data.get('year', '2024'),
+                    'Investment_4': 'OSI',
+                    'OSI_actualAmount': data.get('amount', 0),
+                    'OSI_Doc': data.get('doc', ''),
+                    'Status4': 'Pending'
+                }
+            )
+            if not created:
+                poifile.OSI_actualAmount = data.get('amount', 0)
+                poifile.OSI_Doc = data.get('doc', '')
+                poifile.save()
+
+            return JsonResponse({"message": "Other income data saved successfully"})
+        else:
+            return JsonResponse({"error": "Employee not found"}, status=400)
+
+
+
+
+@csrf_exempt
+def get_departments_by_company(request):
+    c_id = request.session.get('c_id')  # Get the company ID from the session
+    if c_id:
+        departments = Department.objects.filter(c_id=c_id).values('d_id', 'd_name')
+        return JsonResponse(list(departments), safe=False)
+    else:
+        return JsonResponse({'error': 'No company ID found in session'}, status=400)
+
+@csrf_exempt
+def get_employee_names_by_company(request):
+    c_id = request.session.get('c_id')
+    if c_id:
+        employees = Employee.objects.filter(d_id__c_id=c_id).values('emp_name', 'emp_emailid')
+        return JsonResponse({'employees': list(employees)}, safe=False)
+    return JsonResponse({'employees': []}, safe=False)
+
+
+
+
+@csrf_exempt
+def AddBankDetails(request):
+    emp_emailid = request.session.get('emp_emailid')  # Get email from session (logged-in user)
+    
+    if not emp_emailid:
+        return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+
+            # Extract fields from the request data
+            holder_name = data.get('holder_name')
+            bank_name = data.get('bank_name')
+            acc_no = data.get('acc_no')
+            branch = data.get('branch')
+            acc_type = data.get('acc_type')
+            ifsc = data.get('ifsc')
+            Pan_no = data.get('Pan_no')
+
+            # Check if all required fields are present
+            if not all([holder_name, bank_name, acc_no, branch, acc_type, ifsc, Pan_no]):
+                return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
+            
+            # Retrieve the employee instance from the session email ID
+            try:
+                employee = Employee.objects.get(emp_emailid=emp_emailid)
+            except Employee.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': 'Employee not found'}, status=404)
+
+            # Create new Bank_details entry
+            bank_details = Bank_details.objects.create(
+                holder_name=holder_name,
+                bank_name=bank_name,
+                acc_no=acc_no,
+                branch=branch,
+                acc_type=acc_type,
+                ifsc=ifsc,
+                Pan_no=Pan_no,
+                emp_emailid=employee  # Link to the employee using ForeignKey
+            )
+
+            bank_details.save()  # Save the instance
+
+            return JsonResponse({'status': 'success', 'message': 'Bank details added successfully'})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+
+
+@csrf_exempt
+def AddPersonalDetails(request):
+    emp_emailid = request.session.get('emp_emailid')  # Get email from session (logged-in user)
+    
+    if not emp_emailid:
+        return JsonResponse({'status': 'error', 'message': 'User not logged in'}, status=401)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+
+            # Extract fields from the request data
+            first_name = data.get('first_name')
+            last_name = data.get('last_name')
+            Contact = data.get('Contact')
+            emergency_name = data.get('emergency_name')
+            emergency_contact = data.get('emergency_contact')
+            gender = data.get('gender')
+            birth_date = data.get('birth_date')  # Ensure this is sent in correct date format (YYYY-MM-DD)
+            address = data.get('address')
+            city = data.get('city')
+            district = data.get('district')
+            post_code = data.get('post_code')
+            state = data.get('state')
+
+            # Check if at least one required field is present (you can modify this based on your needs)
+            if not first_name:
+                return JsonResponse({'status': 'error', 'message': 'First name is required'}, status=400)
+
+            # Retrieve the employee instance from the session email ID
+            try:
+                employee = Employee.objects.get(emp_emailid=emp_emailid)
+            except Employee.DoesNotExist:
+                return JsonResponse({'status': 'error', 'message': 'Employee not found'}, status=404)
+
+            # Create new Personal_details entry
+            personal_details = Personal_details.objects.create(
+                first_name=first_name,
+                last_name=last_name,
+                Contact=Contact,
+                emergency_name=emergency_name,
+                emergency_contact=emergency_contact,
+                gender=gender,
+                birth_date=birth_date,
+                address=address,
+                city=city,
+                district=district,
+                post_code=post_code,
+                state=state,
+                mail=employee  # Link to the employee using the ForeignKey
+            )
+
+            personal_details.save()  # Save the instance
+
+            return JsonResponse({'status': 'success', 'message': 'Personal details added successfully'})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+

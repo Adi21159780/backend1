@@ -54,6 +54,7 @@ SESSION_SAVE_EVERY_REQUEST = False  # Same as 'resave: false' in Express
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Session will not expire when the browser closes
 SESSION_COOKIE_SAMESITE = 'Lax'
 
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -173,6 +174,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'dummyyWork122@gmail.com'
 EMAIL_HOST_PASSWORD = 'ndkv ujlh tpfm lgrd'
+
 # TO get the password: Go to your google account-> Manage google account-> Search "App passwords (Security)"-> Create password.
 
 
@@ -190,3 +192,8 @@ LOGGING = {
         'level': 'DEBUG',
     },
 }
+
+
+
+# settings.py
+EMAIL_SEPARATOR = ','

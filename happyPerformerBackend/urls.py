@@ -96,7 +96,7 @@ urlpatterns = [
     path('PayslipPayout/', views.PayslipPayout, name='PayslipPayout'),
     path('GeneratePayslip/', views.GeneratePayslip, name='GeneratePayslip'),
     path('HomeSalary/', views.HomeSalary, name='HomeSalary'),
-    path('AddSalary/', views.AddSalary, name='AddSalary'),
+    path('AddSalary/', views.AddSalary1, name='AddSalary'),
     path('SalaryRevisionHistory/', views.SalaryRevisionHistory, name='SalaryRevisionHistory'),
     path('DisplaySalaryDetails/', views.DisplaySalaryDetails, name='DisplaySalaryDetails'),
     path('CustomForms/', views.CustomForms, name='CustomForms'),
@@ -159,6 +159,14 @@ urlpatterns = [
     path('QuizResults/<int:quiz_id>/', views.QuizResults, name='QuizResults'),
     path('DetailedDescription/<int:quiz_id>/', views.DetailedDescription, name='DetailedDescription'),
     path('AttemptedQuizzes/', views.AttemptedQuizzes, name='AttemptedQuizzes'),
+    path('getcomp/', views.get_departments_by_company, name='get_departments_by_company'),
+    path('getemp/', views.get_employee_names_by_company, name='get_employee_names_by_company'),
+    path('AddBankDetails/', views.AddBankDetails, name='AddBankDetails'),
+    path('AddPersonalDetails/', views.AddPersonalDetails, name='AddPersonalDetails'),
+
+
+    
+    # Add other paths here
 ]
 
 
