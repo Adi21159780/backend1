@@ -4722,7 +4722,7 @@ def MarkAttendance(request):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
-# addded
+# addded dipayan
 @csrf_exempt
 @role_required(['Manager', 'Super Manager'])
 def JDForm(request):

@@ -105,7 +105,7 @@ urlpatterns = [
     path('EmployeeMaster/', views.EmployeeMaster, name='employeemaster'),
     # path('Settings/', views.Settings, name='Settings'),    
  # path('Settings/UpdateEmployeePassword/', views.UpdateEmployeePassword, name='UpdateEmployeePassword'),
-#  added
+#  added dipayan
     path('jdform/', views.JDForm, name='JDForm'),
     path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
     path('kraform/', views.KRAForm, name='KRAForm'),
