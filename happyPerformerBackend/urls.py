@@ -18,7 +18,7 @@ urlpatterns = [
     path('Forms/', views.Forms, name='Forms'),
     path('FormReviewRespose/', views.FormReviewRespose, name='FormReviewRespose'),
     path('FormsSubmitResponse/', views.FormsSubmitResponse, name='FormsSubmitResponse'),
-    path('Kra/', views.Kra, name='Kra'),
+    path('Kra/', views.KraList, name='KraList'),
     path('Letters/', views.Letters, name='Letters'),
     path('FAQsView/', views.FAQsView, name='FAQsView'),
     path('ApplyLeave/', views.ApplyLeave, name='ApplyLeave'),
@@ -53,14 +53,18 @@ urlpatterns = [
     path('EditResignation/', views.EditResignation, name='EditResignation'),
     path('EditExitClearnace/', views.EditExitClearnace, name='EditExitClearnace'),
     path('GenerateFnf/', views.GenerateFnf, name='GenerateFnf'),
+
     path('DisplayTraining/', views.DisplayTraining, name='DisplayTraining'),
+    path('CreateCase', views.CreateCase, name='CreateCase'),
+    path('MyCases', views.MyCases, name='MyCases'),
+
+    path('DisplayTraining', views.DisplayTraining, name='DisplayTraining'),
     path('CreateCase/', views.CreateCase, name='CreateCase'),
     path('MyCases/', views.MyCases, name='MyCases'),
     path('UpdatePersonalDetails/', views.UpdatePersonalDetails, name='UpdatePersonalDetails'),
     path('UpdateJobDetails/', views.UpdateJobDetails, name='UpdateJobDetails'),
     path('UpdateBankDetails/', views.UpdateBankDetails, name='UpdateBankDetails'),
     path('UpdateWorkExperience/', views.UpdateWorkExperience, name='UpdateWorkExperience'),
-    path('UpdateDependent/', views.UpdateDependent, name='UpdateDependent'),
     path('UpdateAdhaar/', views.UpdateAdhaar, name='UpdateAdhaar'),
     path('UpdateLicence/', views.UpdateLicence, name='UpdateLicence'),
     path('UpdatePassport/', views.UpdatePassport, name='UpdatePassport'),
@@ -110,7 +114,6 @@ urlpatterns = [
     path('socialpost/', views.social_submit_feedback_post, name='social_submit_feedback_post'),
     path('employee_view/', views.employee_view, name='employee_view'),
     path('getcourses/', views.GetCourses, name='GetCourses'),
-    path('create-quiz/', views.create_quiz, name='create_quiz'),
     path('allquiz/', views.allquiz, name='allquiz'),
     path('markattendance/', views.markattendance, name='markattendance'),
     path('settings_account/', views.update_settings_account, name='settings_account'),
@@ -135,7 +138,30 @@ urlpatterns = [
     path('attrition/choice/', views.attrition_choice_data, name='attrition-choice-data'),
     path('poi/', views.poi_list_create, name='poi_list_create'),  # Handles GET and POST requests
     path('poi/<int:poi_id>/', views.poi_delete, name='poi_delete'),
+
+    # path('Settings/', views.Settings, name='Settings'),    
+ # path('Settings/UpdateEmployeePassword/', views.UpdateEmployeePassword, name='UpdateEmployeePassword'),
+#  added dipayan
+    path('jdform/', views.JDForm, name='JDForm'),
+    # path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
+    path('kraform/', views.KRAForm, name='KRAForm'),
+    path('sopform/', views.SOPForm, name='SOPForm'),
+    path('bulkUploadEmployeeDetailsUpload/', views.bulkUploadEmployeeDetailsUpload, name='bulkUploadEmployeeDetailsUpload'),
+    # path('bulkEmployeeregistration/', views.bulkEmployeeregistration, name='bulkEmployeeregistration'),
+    path('SopList/', views.SopList, name='SopList'),
+    path('Jdlist/', views.JdList, name='JdList'),
+    path('JdDetails/', views.JdDetails, name='JdDetails'),
+    path('UpdateDependent/', views.UpdateDependent, name='UpdateDependent'),
+    path('CreateQuiz/', views.CreateQuiz, name='CreateQuiz'),
+    path('AttemptQuiz/', views.AttemptQuiz, name='AttemptQuiz'),
+    path('AttemptQuiz/<int:quiz_id>/', views.AttemptQuiz, name='AttemptQuiz'),
+    path('QuizResults/', views.QuizResults, name='QuizResults'),
+    path('QuizResults/<int:quiz_id>/', views.QuizResults, name='QuizResults'),
+    path('DetailedDescription/<int:quiz_id>/', views.DetailedDescription, name='DetailedDescription'),
+    path('AttemptedQuizzes/', views.AttemptedQuizzes, name='AttemptedQuizzes'),
 ]
+
+
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
