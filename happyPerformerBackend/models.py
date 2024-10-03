@@ -460,13 +460,15 @@ class Kra(models.Model):
         (3, '3'),
         (4, '4'),
     ]
-    ratings = models.IntegerField(choices=RATINGS_CHOICES)
+    ratings = models.IntegerField(choices=RATINGS_CHOICES, null=True, blank=True, default=1)
     selfratings = models.IntegerField(default=0)
     remarks = models.CharField(max_length=500, null=True, default=None)
     status = models.IntegerField(default=0)
     kra_id = models.IntegerField()
     email_id = models.CharField(max_length=100, null=True, default=None)
     kra_id = models.ForeignKey('Kra_table', on_delete=models.CASCADE, db_column='kra_id')
+    Measurement = models.IntegerField(null=True, default=0)
+    submission_date = models.DateTimeField(default=None)
 
 
 class Leavecounttemp(models.Model):
@@ -563,7 +565,7 @@ class Ot(models.Model):
 
 class Pan(models.Model):
     Pan_Id = models.BigAutoField(primary_key=True)
-    pan_no = models.BigIntegerField()
+    pan_no = models.CharField(max_length=30, null=False)
     pan_name = models.CharField(max_length=200)
     pan_pic = models.FileField(upload_to='PAN/', validators=[validate_image_extension], default=None)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None)
@@ -571,7 +573,7 @@ class Pan(models.Model):
 
 class Passport(models.Model):
     Pass_Id = models.BigAutoField(primary_key=True)
-    passport_no = models.BigIntegerField()
+    passport_no = models.CharField(null=False)
     passport_name = models.CharField(max_length=200)
     passport_validity = models.DateField()
     passport_pic = models.FileField(upload_to='Passport/', default=None, validators=[validate_image_extension])
@@ -657,19 +659,6 @@ class Questions_static(models.Model):
     choice = models.IntegerField()
     sn = models.IntegerField()
 
-class Quiz(models.Model):
-    # id = models.IntegerField(primary_key=True) django automatically generates id as primary key
-    eid = models.TextField()
-    title = models.CharField(max_length=100)
-    course_title = models.CharField(max_length=100)
-    correct = models.IntegerField()
-    wrong = models.IntegerField()
-    total_marks = models.IntegerField(default=0)
-    passing = models.IntegerField()
-    total = models.IntegerField()
-    time = models.BigIntegerField()
-    date = models.TextField()
-    status = models.CharField(max_length=10)
 
 class Reporting(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -771,6 +760,16 @@ class Sop(models.Model):
     type = models.CharField(max_length=20, null=True, blank=True)
     s_name = models.CharField(max_length=30)
     sdate = models.DateField(null=True, blank=True)
+    sop_file = models.FileField(upload_to='sop/', default=None, null=True)
+    RATINGS_CHOICES = [
+        (1, '1'),
+        (2, '2'),
+        (3, '3'),
+        (4, '4'),
+    ]
+    ratings = models.IntegerField(choices=RATINGS_CHOICES, null=True, blank=True, default=1)
+    selfratings = models.IntegerField(default=0)
+    remarks = models.CharField(max_length=500, null=True, default=None)
     d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id')
 
 
@@ -836,6 +835,8 @@ class Todotasks(models.Model):
             models.Index(fields=['evt_id']),
         ]
 
+
+
 class User_answer(models.Model):
     id = models.BigAutoField(primary_key=True)
     qid = models.CharField(max_length=50)
@@ -879,3 +880,64 @@ class OTPVerification(models.Model):
     class Meta:
         verbose_name = "OTP Verification"
         verbose_name_plural = "OTP Verifications"
+
+#added
+class OTPVerification(models.Model):
+    emp_emailid = models.EmailField(unique=True)
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.emp_emailid} - {self.otp}"
+
+    class Meta:
+        verbose_name = "OTP Verification"
+        verbose_name_plural = "OTP Verifications"
+
+# added dipayan
+class Kra_desc(models.Model):
+    kra_no = models.BigAutoField(primary_key=True)
+    KRA = models.CharField(max_length=50)
+    Weightage = models.IntegerField()
+    KPI = models.CharField(max_length=500)
+    Measurement = models.IntegerField()
+    submission_date = models.DateTimeField(default=None)
+    email_id = models.CharField(max_length=100, null=True, default=None)
+
+class Quiz(models.Model):
+    eid = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="quizzes")
+    title = models.CharField(max_length=100)
+    course_title = models.CharField(max_length=100)
+    correct = models.IntegerField(default=0)
+    wrong = models.DecimalField(max_digits=5, decimal_places=2)
+    total_marks = models.IntegerField(default=0)
+    passing = models.IntegerField()
+    total = models.IntegerField()
+    time = models.IntegerField()
+    date = models.TextField()
+    status = models.CharField(max_length=10)
+
+# Question Model
+class Question(models.Model):
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
+    text = models.TextField()  # The question text
+    correct_answer = models.TextField()  # Correct answer text
+
+# Option Model
+class Option(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options")
+    text = models.TextField()  # The option text
+    is_correct = models.BooleanField(default=False)  # Marks if this option is the correct answer
+
+# Quiz Attempt Model to track each employee's quiz attempt
+class QuizAttempt(models.Model):
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts")
+    employee = models.ForeignKey('Employee', on_delete=models.CASCADE)
+    chosen_options = models.JSONField()  # Store the chosen options as a JSON object (question_id -> chosen option)
+    score = models.DecimalField(max_digits=5, decimal_places=2)  # Marks obtained by the employee
+    time_taken = models.IntegerField()  # Time taken to complete the quiz
+    is_passed = models.BooleanField()  # Whether the employee passed the quiz
+    attempt_date = models.DateTimeField(auto_now_add=True)  # When the attempt happened
+    total_correct = models.IntegerField(default=0)  # Add this field
+    total_unattempted = models.IntegerField(default=0)  # Add this field
+    total_wrong = models.IntegerField(default=0)  # Add this field

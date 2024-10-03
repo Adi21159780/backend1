@@ -222,6 +222,18 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.CreateModel(
+            name='Kra_desc',
+            fields=[
+                ('kra_no', models.BigAutoField(primary_key=True, serialize=False)),
+                ('KRA', models.CharField(max_length=50)),
+                ('Weightage', models.IntegerField()),
+                ('KPI', models.CharField(max_length=500)),
+                ('Measurement', models.IntegerField()),
+                ('email_id', models.CharField(default=None, max_length=100, null=True)),
+                ('submission_date', models.DateTimeField(default=None)),
+            ],
+        ),
+        migrations.CreateModel(
             name='Kra_table',
             fields=[
                 ('kra_id', models.BigAutoField(primary_key=True, serialize=False)),
@@ -943,6 +955,7 @@ class Migration(migrations.Migration):
                 ('type', models.CharField(blank=True, max_length=20, null=True)),
                 ('s_name', models.CharField(max_length=30)),
                 ('sdate', models.DateField(blank=True, null=True)),
+                ('sop_file', models.FileField(default=None, null=True, upload_to='sop/')),
                 ('d_id', models.ForeignKey(db_column='d_id', on_delete=django.db.models.deletion.CASCADE, to='happyPerformerBackend.department')),
             ],
         ),
