@@ -864,7 +864,7 @@ class Work_exp(models.Model):
     leave_reason = models.TextField(null=True, blank=True)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid')
 
-
+# added
 class Kra_desc(models.Model):
     kra_no = models.BigAutoField(primary_key=True)
     KRA = models.CharField(max_length=50)

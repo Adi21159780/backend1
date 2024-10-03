@@ -103,8 +103,9 @@ urlpatterns = [
     path('EmployeeDetails/', views.EmployeeDetails, name='EmployeeDetails'),
     path('AttendanceDetails/', views.AttendanceDetails, name='AttendanceDetails'),
     path('EmployeeMaster/', views.EmployeeMaster, name='employeemaster'),
-    path('Settings/', views.Settings, name='Settings'),  
-    path('Settings/UpdateEmployeePassword/', views.UpdateEmployeePassword, name='UpdateEmployeePassword'),
+    # path('Settings/', views.Settings, name='Settings'),    
+ # path('Settings/UpdateEmployeePassword/', views.UpdateEmployeePassword, name='UpdateEmployeePassword'),
+#  added
     path('jdform/', views.JDForm, name='JDForm'),
     path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
     path('kraform/', views.KRAForm, name='KRAForm'),
