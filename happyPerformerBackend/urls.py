@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
+from .views import task_list,task_detail, task_search
 
 urlpatterns = [
     path('', views.Home, name='home'),
@@ -163,12 +164,17 @@ urlpatterns = [
     path('getemp/', views.get_employee_names_by_company, name='get_employee_names_by_company'),
     path('AddBankDetails/', views.AddBankDetails, name='AddBankDetails'),
     path('AddPersonalDetails/', views.AddPersonalDetails, name='AddPersonalDetails'),
-
-
+    path('tasks/', views.task_list, name='task_list'),
+    path('tasks/<int:task_id>/', task_detail, name='task_detail'),
+    path('tasks/search/', task_search, name='task_search'),
+    path('myperformance/<str:employee_email>/<int:year>/', views.get_performance_data, name='get_performance_data'),
+    path('jd-form/', views.jd_form, name='jd_form'),
+    path('myperformance/<int:year>/', views.get_performance_data, name='get_performance_data'),
+    path('benefits-cases/', views.BenefitsCases, name='benefits_cases'),
+    path('travel-expense-cases/', views.TravelExpenseCases, name='travel_expense_cases'),
+    path('compensation-payroll-cases/', views.CompensationPayrollCases, name='compensation_payroll_cases'),
     
-    # Add other paths here
 ]
-
 
 
 if settings.DEBUG:

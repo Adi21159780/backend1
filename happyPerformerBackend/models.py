@@ -871,6 +871,16 @@ class Work_exp(models.Model):
 
 
 
+#added a model for razorpay integration
+class RazorpayOrder(models.Model):
+    order_id = models.CharField(max_length=255, unique=True)
+    salary = models.ForeignKey(Salary, on_delete=models.CASCADE)
+    amount = models.IntegerField()  # Amount in paise
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+
+
+
 #added
 class OTPVerification(models.Model):
     emp_emailid = models.EmailField(unique=True)
