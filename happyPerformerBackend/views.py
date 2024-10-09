@@ -168,7 +168,6 @@ def Users(request):
     return JsonResponse(data)
 
 
-
 @csrf_exempt
 def Logout(request):
     if request.method == 'POST':
@@ -269,29 +268,30 @@ def Register(request):
             emp_name = data.get('empName')
             emp_email = data.get('empMail')
             emp_phone = data.get('empNum')
-            emp_pwd = data.get('emp_pwd', 'changeme')  # Default to 'changeme' if not provided
-            emp_role = data.get('empRole', 'Super Manager')  # Default to 'Super Manager' if not provided
+            emp_pwd = data.get('emp_pwd', 'changeme')
+            emp_role = data.get('empRole', 'Super Manager')
             emp_skills = data.get('empSkills')
+
+            # Capture the client's IP address
+            office_ip = request.META.get('REMOTE_ADDR')
 
             # Check if the company with the exact details exists
             try:
                 company = Company.objects.get(c_name=name, c_addr=addr, c_phone=phone)
                 created = False
             except Company.DoesNotExist:
-                company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
+                # Create a new company with the fetched IP address
+                company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone, office_ip=office_ip)
                 created = True
 
             # Only create departments if the company is newly created
             if created:
-                # Create departments and get the first department's ID
                 first_dept_id = None
                 for dept_name in dept_names:
-                    # Create department with the Company instance
                     new_dept = Department.objects.create(d_name=dept_name, c_id=company)
                     if first_dept_id is None:
                         first_dept_id = new_dept
             else:
-                # If the company already exists, use the existing first department ID
                 first_dept_id = Department.objects.filter(c_id=company).first()
                 
                 if not first_dept_id:
@@ -308,7 +308,7 @@ def Register(request):
                 d_id=first_dept_id
             )
 
-            return JsonResponse({'message': 'Company registration successful'}, status=201)
+            return JsonResponse({'message': 'Company registration successful', 'office_ip': office_ip}, status=201)
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -320,6 +320,7 @@ def Register(request):
 
     else:
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+
 
 
 
@@ -376,7 +377,8 @@ def SopAndPolicies(request):
             }
             combined_data.append(combined_task)
 
-        return JsonResponse({'data': combined_data}, safe=False)
+        return JsonResponse({'data': 
+            combined_data}, safe=False)
     else:
         return JsonResponse({'error': 'User not logged in'}, status=401)
 
@@ -5816,6 +5818,603 @@ def EmployeeMaster(request):
         'employees': list(employees)
     }
 
+    return JsonResponse(data)
+
+
+@csrf_exempt
+def task_list(request):
+    """
+    Handles requests related to to-do tasks.
+
+    GET: Retrieves a list of tasks for the authenticated user.
+    POST: Creates a new task for the authenticated user.
+    """
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'GET':
+        tasks = Todotasks.objects.filter(tasks_tid__emp_emailid=emp_emailid).values()
+        tasks_list = list(tasks)
+        return JsonResponse(tasks_list, safe=False)
+
+    elif request.method == 'POST':
+        data = json.loads(request.body)
+        description = data.get('description')
+        new_task = Todotasks(description=description)
+        new_task.save()
+
+        # Fetch the Employee instance using emp_emailid
+        employee = Employee.objects.get(emp_emailid=emp_emailid)
+
+        # Create the associated Tasks entry using the Employee instance
+        Tasks.objects.create(tid=new_task, emp_emailid=employee)
+
+        return JsonResponse(
+            {'id': new_task.tid, 'description': new_task.description, 'date': new_task.date}, 
+            status=201
+        )
+
+@csrf_exempt
+def task_detail(request, task_id):
+    """
+    Handles requests for a specific to-do task.
+
+    GET: Retrieves details of a task.
+    PUT: Updates a task.
+    DELETE: Deletes a task.
+    """
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    try:
+        # Get the task, ensuring it belongs to the user
+        task = Todotasks.objects.get(tid=task_id, tasks_tid__emp_emailid=emp_emailid)
+    except Todotasks.DoesNotExist:
+        return HttpResponse(status=404)
+
+    if request.method == 'GET':
+        return JsonResponse({'id': task.tid, 'description': task.description, 'date': task.date})
+
+    elif request.method == 'PUT':
+        data = json.loads(request.body)
+        task.description = data.get('description', task.description)
+        task.save()
+        return JsonResponse({'id': task.tid, 'description': task.description, 'date': task.date})
+
+    elif request.method == 'DELETE':
+        task.delete()
+        return HttpResponse(status=204)
+
+@csrf_exempt
+def task_search(request):
+    """
+    Handles search requests for to-do tasks.
+
+    GET: Retrieves tasks matching the search term for the authenticated user.
+    """
+    emp_emailid = request.session.get('emp_emailid')
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'GET':
+        search_term = request.GET.get('search', '')
+        tasks = Todotasks.objects.filter(
+            description__icontains=search_term,
+            tasks_tid__emp_emailid=emp_emailid
+        ).values()
+        tasks_list = list(tasks)
+        return JsonResponse(tasks_list, safe=False)
+    
+    
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_performance_data(request, employee_email, year):
+    # Authenticate user
+    user_email = request.session.get('user_id')
+    
+    # Fetch the employee record using the email from the session
+    try:
+        logged_in_employee = Employee.objects.get(emp_emailid=user_email)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'User not authenticated'}, status=401)
+    
+    # Fetch the employee record for the requested performance data
+    try:
+        employee = Employee.objects.get(emp_emailid=employee_email, d_id=logged_in_employee.d_id)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'Employee not found'}, status=404)
+    
+    # Filter tasks based on the employee and year
+    tasks = Tasks.objects.filter(emp_emailid=employee, sop__sdate__year=year)
+    
+    # Calculate task statistics
+    total_sop_assigned = tasks.count()
+    total_sop_accomplished = tasks.filter(status=True).count()
+    total_kra_assigned = tasks.filter(kra_id__isnull=False).count()
+    total_kra_accomplished = tasks.filter(kra_id__isnull=False, status=True).count()
+    total_jd_assigned = tasks.filter(job_desc_id__isnull=False).count()
+    total_jd_accomplished = tasks.filter(job_desc_id__isnull=False, status=True).count()
+    total_training_assigned = tasks.filter(tid__isnull=False).count()
+    total_training_accomplished = tasks.filter(tid__isnull=False, status=True).count()
+    
+    # Prepare the response data
+    data = {
+        'totalSopAssigned': total_sop_assigned,
+        'totalSopAccomplished': total_sop_accomplished,
+        'totalKraAssigned': total_kra_assigned,
+        'totalKraAccomplished': total_kra_accomplished,
+        'totalJdAssigned': total_jd_assigned,
+        'totalJdAccomplished': total_jd_accomplished,
+        'totalTrainingAssigned': total_training_assigned,
+        'totalTrainingAccomplished': total_training_accomplished,
+    }
+
+    return JsonResponse(data, status=200)
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def jd_form(request):
+    """
+    Handles requests related to Job Description forms.
+
+    GET: Not supported for this endpoint.
+    POST: Creates a new JD form and associated tasks.
+    PUT: Not supported for this endpoint.
+    DELETE: Not supported for this endpoint.
+    """
+    company_id = request.session.get('c_id')
+    if not company_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            jd_name = data.get('jdName')
+            date = data.get('date')
+            responsibilities = data.get('responsibilities')
+
+            if not all([jd_name, date, responsibilities]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+            # Assuming you are sending employee emails in the request
+            employee_emails = data.get('employeeEmails', [])  # Get employee emails from data
+
+            with transaction.atomic():
+                jd_instance = Job_desc.objects.create(
+                    jd_name=jd_name,
+                    responsiblities=', '.join(responsibilities),  # Store responsibilities as comma-separated string
+                    sdate=date
+                )
+
+                for emp_email in employee_emails:
+                    employee = Employee.objects.get(emp_emailid=emp_email)
+                    if employee.d_id.c_id_id != company_id:
+                        raise ValueError(f"Employee {emp_email} does not belong to this company.")
+
+                    Tasks.objects.create(
+                        job_desc_id=jd_instance,
+                        responsiblities=', '.join(responsibilities),  # Store responsibilities as comma-separated string
+                        emp_emailid=employee,
+                        sdate=date,
+                        d_id=employee.d_id
+                    )
+
+            return JsonResponse({'message': 'JD form and tasks created successfully'}, status=201)
+
+        except (Employee.DoesNotExist, ValueError) as e:
+            return JsonResponse({'error': str(e)}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+    
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def AttritionReport(request):
+    """
+    Generates an attrition report for the company.
+
+    GET: Retrieves the attrition report data.
+    """
+    company_id = request.session.get('c_id')
+    if not company_id:
+        return JsonResponse({'error': 'Company ID not found in session'}, status=401)
+
+    if request.method == 'GET':
+        try:
+            # Calculate attrition rate for the past 12 months
+            today = datetime.now()
+            start_date = today - timedelta(days=365)  # Past 12 months
+
+            # Get all employees who joined within the past year
+            joined_employees = Job_info.objects.filter(
+                emp_emailid__d_id__c_id=company_id, 
+                start_date__gte=start_date
+            ).annotate(
+                join_month=TruncMonth('start_date')
+            )
+
+            # Get employees who resigned within the past year
+            resigned_employees = Resignation.objects.filter(
+                emp_emailid__d_id__c_id=company_id,
+                submit_date__gte=start_date
+            ).annotate(
+                resignation_month=TruncMonth('submit_date')
+            )
+
+            # Aggregate data by month
+            attrition_data = joined_employees.values('join_month').annotate(
+                joined_count=Count('emp_emailid'),
+                resigned_count=Count('emp_emailid__R_Id', filter=Q(emp_emailid__R_Id__in=resigned_employees)),
+            ).order_by('join_month')
+
+            # Calculate attrition rate and format the data for response
+            report_data = []
+            for data in attrition_data:
+                month_name = calendar.month_name[data['join_month'].month]
+                attrition_rate = (data['resigned_count'] / data['joined_count']) * 100 if data['joined_count'] > 0 else 0
+                report_data.append({
+                    'month': month_name,
+                    'joined_count': data['joined_count'],
+                    'resigned_count': data['resigned_count'],
+                    'attrition_rate': round(attrition_rate, 2)
+                })
+
+            return JsonResponse({'attrition_report': report_data}, status=200)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_performance_data(request, year):
+    # Fetch the user ID from the session
+    user_email = request.session.get('user_id')
+
+    if not user_email:
+        return JsonResponse({'error': 'User not authenticated'}, status=401)
+
+    # Fetch the employee record using the email from the session
+    try:
+        logged_in_employee = Employee.objects.get(emp_emailid=user_email)
+    except Employee.DoesNotExist:
+        return JsonResponse({'error': 'User not authenticated'}, status=401)
+    
+    # Filter tasks based on the employee and year, assuming sop_id has a field like `sdate`
+    tasks = Tasks.objects.filter(emp_emailid=logged_in_employee, sop_id__sdate__year=year)
+    
+    # Calculate task statistics
+    total_sop_assigned = tasks.count()
+    total_sop_accomplished = tasks.filter(status=True).count()
+    total_kra_assigned = tasks.filter(kra_id__isnull=False).count()
+    total_kra_accomplished = tasks.filter(kra_id__isnull=False, status=True).count()
+    total_jd_assigned = tasks.filter(job_desc_id__isnull=False).count()
+    total_jd_accomplished = tasks.filter(job_desc_id__isnull=False, status=True).count()
+    total_training_assigned = tasks.filter(tid__isnull=False).count()
+    total_training_accomplished = tasks.filter(tid__isnull=False, status=True).count()
+    
+    # Prepare the response data
+    data = {
+        'totalSopAssigned': total_sop_assigned,
+        'totalSopAccomplished': total_sop_accomplished,
+        'totalKraAssigned': total_kra_assigned,
+        'totalKraAccomplished': total_kra_accomplished,
+        'totalJdAssigned': total_jd_assigned,
+        'totalJdAccomplished': total_jd_accomplished,
+        'totalTrainingAssigned': total_training_assigned,
+        'totalTrainingAccomplished': total_training_accomplished,
+    }
+
+    return JsonResponse(data, status=200)
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def BenefitsCases(request):
+    def get_timeago(ptime):
+        estimate_time = timezone.now() - ptime
+        if estimate_time.days < 1:
+            return 'Today'
+
+        condition = {
+            365: 'year',
+            30: 'month',
+            1: 'day'
+        }
+
+        for secs, unit in condition.items():
+            delta = estimate_time.days // secs
+            if delta > 0:
+                return f"about {delta} {unit}{'s' if delta > 1 else ''} ago"
+
+    user_id = request.session.get('user_id')
+    company_id = request.session.get('c_id')
+
+    if not user_id or not company_id:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    cases = Case.objects.filter(
+        created_by__d_id__c_id=company_id,
+        case_type='Benefits'
+    ).select_related('created_by', 'assigned_to')
+
+    case_data = []
+    for case in cases:
+        timeago = get_timeago(case.case_date)
+        assigned_to = case.assigned_to.emp_name if case.assigned_to else "Not Assigned"
+        created_by = case.created_by
+
+        case_data.append({
+            'case_id': case.case_id,
+            'create_for': case.create_for,
+            'case_title': case.case_title,
+            'case_type': case.case_type,
+            'case_date': timeago,
+            'assigned_to': assigned_to,
+            'case_status': case.case_status,
+            'created_by': created_by.emp_name,
+            'created_by_profile': created_by.emp_profile.url
+        })
+
+    context = {
+        'cases': case_data
+    }
+
+    return JsonResponse({'cases': case_data})
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def TravelExpenseCases(request):
+    def get_timeago(ptime):
+        estimate_time = timezone.now() - ptime
+        if estimate_time.days < 1:
+            return 'Today'
+
+        condition = {
+            365: 'year',
+            30: 'month',
+            1: 'day'
+        }
+
+        for secs, unit in condition.items():
+            delta = estimate_time.days // secs
+            if delta > 0:
+                return f"about {delta} {unit}{'s' if delta > 1 else ''} ago"
+
+    user_id = request.session.get('user_id')
+    company_id = request.session.get('c_id')
+
+    if not user_id or not company_id:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    cases = Case.objects.filter(
+        created_by__d_id__c_id=company_id,
+        case_type='TravelCases'
+    ).select_related('created_by', 'assigned_to')
+
+    case_data = []
+    for case in cases:
+        timeago = get_timeago(case.case_date)
+        assigned_to = case.assigned_to.emp_name if case.assigned_to else "Not Assigned"
+        created_by = case.created_by
+
+        case_data.append({
+            'case_id': case.case_id,
+            'create_for': case.create_for,
+            'case_title': case.case_title,
+            'case_type': case.case_type,
+            'case_date': timeago,
+            'assigned_to': assigned_to,
+            'case_status': case.case_status,
+            'created_by': created_by.emp_name,
+            'created_by_profile': created_by.emp_profile.url
+        })
+
+    context = {
+        'cases': case_data
+    }
+
+    return JsonResponse({'cases': case_data})
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def CompensationPayrollCases(request):
+    def get_timeago(ptime):
+        estimate_time = timezone.now() - ptime
+        if estimate_time.days < 1:
+            return 'Today'
+
+        condition = {
+            365: 'year',
+            30: 'month',
+            1: 'day'
+        }
+
+        for secs, unit in condition.items():
+            delta = estimate_time.days // secs
+            if delta > 0:
+                return f"about {delta} {unit}{'s' if delta > 1 else ''} ago"
+
+    user_id = request.session.get('user_id')
+    company_id = request.session.get('c_id')
+
+    if not user_id or not company_id:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    cases = Case.objects.filter(
+        created_by__d_id__c_id=company_id,
+        case_type='CompensationPayroll'
+    ).select_related('created_by', 'assigned_to')
+
+    case_data = []
+    for case in cases:
+        timeago = get_timeago(case.case_date)
+        assigned_to = case.assigned_to.emp_name if case.assigned_to else "Not Assigned"
+        created_by = case.created_by
+
+        case_data.append({
+            'case_id': case.case_id,
+            'create_for': case.create_for,
+            'case_title': case.case_title,
+            'case_type': case.case_type,
+            'case_date': timeago,
+            'assigned_to': assigned_to,
+            'case_status': case.case_status,
+            'created_by': created_by.emp_name,
+            'created_by_profile': created_by.emp_profile.url if created_by.emp_profile else None
+        })
+
+    return JsonResponse({'cases': case_data})
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .models import Company, Department, Employee
+
+@csrf_exempt
+def RegisterHR(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+
+            # Extract HR details
+            username = data.get('username')
+            email = data.get('email')
+            password = data.get('password')
+            first_name = data.get('first_name')
+            last_name = data.get('last_name')
+            phone = data.get('phone')
+            skills = data.get('skills', '')
+
+            # Extract company details
+            company_name = data.get('company_name')
+            company_address = data.get('company_address')
+            company_phone = data.get('company_phone')
+
+            # Validate required fields
+            if not all([username, email, password, first_name, last_name, phone, company_name, company_address, company_phone]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+            with transaction.atomic():
+                # Create or get the company
+                company, created = Company.objects.get_or_create(
+                    c_name=company_name,
+                    defaults={
+                        'c_addr': company_address,
+                        'c_phone': company_phone
+                    }
+                )
+
+                # Create or get the HR department
+                hr_department, _ = Department.objects.get_or_create(
+                    d_name='Human Resources',
+                    c_id=company
+                )
+
+                # Create the HR employee
+                hr_employee = Employee.objects.create(
+                    emp_name=f"{first_name} {last_name}",
+                    emp_emailid=email,
+                    emp_phone=phone,
+                    emp_pwd=password,  # Note: You should hash this password
+                    emp_role='HR',
+                    emp_skills=skills,
+                    d_id=hr_department
+                )
+
+            return JsonResponse({
+                'message': 'HR registration successful',
+                'hr_id': hr_employee.emp_emailid,
+                'company_id': company.c_id
+            }, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except IntegrityError as e:
+            return JsonResponse({'error': f'Database integrity error: {str(e)}'}, status=409)
+        except Exception as e:
+            return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
+
+    else:
+        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+    
+    
+    
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def Resign(request):
+    if request.method == "GET":
+        try:
+            resignations = Resignation.objects.all().values()
+            return JsonResponse(list(resignations), safe=False)
+        except Exception as e:
+            print("Error fetching resignations:", str(e))  # Debugging statement
+            return JsonResponse({'error': f'An unexpected error occurred: {e}'}, status=500)
+
+    elif request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            print("Received data:", data)  # Debugging statement
+
+            # Validate required fields
+            required_fields = ["emp_emailid", "exp_leave", "leave_reason", "leave_date"]
+            for field in required_fields:
+                if field not in data:
+                    print(f"Missing required field: {field}")  # Debugging statement
+                    return JsonResponse({"error": f"Missing required field: {field}"}, status=400)
+
+            # Convert date fields to datetime objects
+            try:
+                exp_leave = datetime.strptime(data.get("exp_leave"), "%Y-%m-%d").date()
+                leave_date = datetime.strptime(data.get("leave_date"), "%Y-%m-%d").date()
+                settle_date = datetime.strptime(data.get("settle_date"), "%Y-%m-%d").date() if data.get("settle_date") else None
+                exit_interview = datetime.strptime(data.get("exit_interview"), "%Y-%m-%d").date() if data.get("exit_interview") else None
+                last_working = datetime.strptime(data.get("last_working"), "%Y-%m-%d").date() if data.get("last_working") else None
+            except ValueError as e:
+                print("Date conversion error:", str(e))  # Debugging statement
+                return JsonResponse({"error": "Invalid date format"}, status=400)
+
+            resignation, created = Resignation.objects.update_or_create(
+                emp_emailid=data.get("emp_emailid"),
+                defaults={
+                    'exp_leave': exp_leave,
+                    'leave_reason': data.get("leave_reason"),
+                    'leave_reason_2': data.get("leave_reason_2"),
+                    'leave_reason_3': data.get("leave_reason_3"),
+                    'leave_date': leave_date,
+                    'settle_date': settle_date,
+                    'exit_interview': exit_interview,
+                    'last_working': last_working,
+                    'status': data.get("status"),
+                    'approved_by': data.get("approved_by"),
+                    'notice_per': data.get("notice_per"),
+                }
+            )
+
+            response = {'message': 'Resignation created successfully'} if created else {'message': 'Resignation updated successfully'}
+            return JsonResponse({'status': 1, 'message': response})
+
+        except json.JSONDecodeError:
+            print("Invalid JSON data")  # Debugging statement
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            print("Error:", str(e))  # Debugging statement
+            return JsonResponse({'error': f'An unexpected error occurred: {e}'}, status=500)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
     
 
 @csrf_exempt
@@ -5979,63 +6578,71 @@ def allquiz(request):
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
     
-
-
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 @csrf_exempt
 def markattendance(request):
     if request.method == 'POST':
-        # Check if user is authenticated
-        user_email = request.session.get('user_id')
-        if not user_email:
-            return JsonResponse({'error': 'User not authenticated'}, status=403)
-
         try:
-            # Retrieve the user from the Employee model
-            user = Employee.objects.get(emp_emailid=user_email)
-
-            # Load the request body
+            # Parse request body
             data = json.loads(request.body)
-            
-            # Print the data for debugging
-            print("Received data:", data)
-
-            email = data.get('email')
-            log_type = data.get('log_type')  # Make sure this matches the field name in the request
+            emp_email = data.get('email')
             latitude = data.get('latitude')
             longitude = data.get('longitude')
+            log_type = data.get('log_type')
+            employee_ip = request.META.get('REMOTE_ADDR')
 
-            # Validate the email
-            if email != user_email:
-                return JsonResponse({'error': 'Cannot mark attendance for a different user'}, status=403)
+            logging.debug(f"Employee IP: {employee_ip}")
 
-            if not email:
-                return JsonResponse({'error': 'Email ID is required'}, status=400)
-            if not log_type:
-                return JsonResponse({'error': 'Log type is required'}, status=400)
+            # Check for missing data
+            if not emp_email or not latitude or not longitude:
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
 
+            # Fetch employee details
             try:
-                employee = Employee.objects.get(emp_emailid=email)
+                employee = Employee.objects.get(emp_emailid=emp_email)
+                logging.debug(f"Employee found: {employee}")
             except Employee.DoesNotExist:
-                return JsonResponse({'error': 'Employee does not exist'}, status=404)
+                logging.error(f"Employee with email {emp_email} not found")
+                return JsonResponse({'error': 'Employee not found'}, status=404)
 
-            # Create attendance record
+            # Get company office IP and check if it exists
+            company = employee.d_id.c_id
+            company_office_ip = company.office_ip
+            logging.debug(f"Company Office IP: {company_office_ip}")
+
+            if not company_office_ip:
+                logging.error(f"No office IP configured for company: {company}")
+                return JsonResponse({'error': 'Company network is not configured'}, status=500)
+
+            # Check if employee IP matches company office IP
+            if employee_ip != company_office_ip:
+                logging.error(f"Employee IP ({employee_ip}) does not match company IP ({company_office_ip})")
+                return JsonResponse({'error': 'Attendance can only be marked from the company network'}, status=403)
+
+            # Proceed with marking attendance
             Attendance.objects.create(
-                emp_emailid=employee,
-                log_type=log_type,
-                user_ip=request.META.get('REMOTE_ADDR'),
+                emp_emailid=employee,  # Use the correct field name
+                user_ip=employee_ip,  # Use the correct field name
                 latitude=latitude,
                 longitude=longitude,
-                datetime_log=timezone.now(),
+                datetime_log=timezone.now().isoformat(),  # Use current datetime in ISO format
                 date_updated=timezone.now()
             )
+            logging.debug("Attendance marked successfully")
+            return JsonResponse({'message': 'Attendance marked successfully'}, status=201)
 
-            return JsonResponse({'message': 'Attendance punched successfully'})
+        except Exception as e:
+            logging.error(f"Error marking attendance: {str(e)}")
+            logging.error(traceback.format_exc())  # Log the full traceback for debugging
+            return JsonResponse({'error': 'Internal Server Error'}, status=500)
 
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
     else:
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
+        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+
+
+
 
 
 #Settings views
