@@ -20,7 +20,7 @@ class Department(models.Model):
     d_id = models.BigAutoField(primary_key=True)
     d_name = models.CharField(max_length=20)
     add_date = models.CharField(max_length=200, null=True, default=None)
-    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id')
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', null=True)
 
 class Employee(models.Model):
     emp_name = models.CharField(max_length=30)
@@ -34,7 +34,7 @@ class Employee(models.Model):
     pay_sts = models.CharField(max_length=200, null=True, default=None)
     Status = models.CharField(max_length=8, default='Active')
     likes = models.CharField(max_length=10000, default='0')
-    d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id')
+    d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id', null=True)
 
 
 
@@ -136,15 +136,15 @@ class Case(models.Model):
     case_desc = models.TextField()
     case_date = models.DateTimeField(auto_now_add=True)
     case_status = models.CharField(max_length=30, default='New')
-    created_by = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='created_by', related_name='created_cases')
+    created_by = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='created_by', related_name='created_cases', null=True)
     assigned_to = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='assigned_to', null=True, default=None, related_name='assigned_cases')
 
 
 class Certificate(models.Model):
     id = models.BigAutoField(primary_key=True)
     en_no = models.CharField(max_length=50)
-    course_title = models.ForeignKey('Courses', on_delete=models.CASCADE)
-    email_id = models.ForeignKey('Employee', on_delete=models.CASCADE)
+    course_title = models.ForeignKey('Courses', on_delete=models.CASCADE, null=True)
+    email_id = models.ForeignKey('Employee', on_delete=models.CASCADE, null=True)
 
 
 class Chat(models.Model):
@@ -153,20 +153,20 @@ class Chat(models.Model):
     reciever_id = models.CharField(max_length=50)
     message = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
-    case_id = models.ForeignKey('Case', on_delete=models.CASCADE, db_column='case_id')
+    case_id = models.ForeignKey('Case', on_delete=models.CASCADE, db_column='case_id', null=True)
 
 
 class Chatbot_categories(models.Model):
     cat_id = models.BigAutoField(primary_key=True)
     category = models.CharField(max_length=255)
-    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id')
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', null=True)
 
 
 class Chatbot_questions(models.Model):
     id = models.BigAutoField(primary_key=True)
     question = models.CharField(max_length=255)
     reply = models.CharField(max_length=255)
-    category_id = models.ForeignKey('chatbot_categories', on_delete=models.CASCADE, db_column='category_id')
+    category_id = models.ForeignKey('chatbot_categories', on_delete=models.CASCADE, db_column='category_id', null=True)
 
 
 class Clearance(models.Model):
@@ -196,7 +196,7 @@ class Courses(models.Model):
     description = models.CharField(max_length=500)
     thumbnail = models.ImageField(upload_to='thumbnails/', validators=[validate_image_extension])
     c_name = models.CharField(max_length=30)
-    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id')
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', null=True)
 
     def __str__(self):
         return self.course_title
@@ -206,7 +206,7 @@ class Course_employee(models.Model):
     status = models.IntegerField()
     Start_date = models.DateTimeField(auto_now_add=True)
     course_title = models.CharField(max_length=25,default=None)
-    course_id = models.ForeignKey('Courses', on_delete=models.CASCADE, db_column='course_id')
+    course_id = models.ForeignKey('Courses', on_delete=models.CASCADE, db_column='course_id', null=True)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid',unique=True, null=True)
 
 
@@ -214,7 +214,7 @@ class Custom_forms(models.Model):
     seq = models.BigAutoField(primary_key=True)
     form_name = models.CharField(max_length=255)
     alloc = models.TextField(max_length=250, null=True, default=None)
-    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id')
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', null=True)
 
 class Custom_forms_questions(models.Model):
     label = models.CharField(max_length=250)
@@ -223,14 +223,14 @@ class Custom_forms_questions(models.Model):
     name = models.CharField(max_length=50, primary_key=True)
     optionName = models.CharField(max_length=250, null=True, default=None)
     form_name = models.CharField(max_length=255)
-    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id')
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', null=True)
 
 class Custom_letters(models.Model):
     seq = models.BigAutoField(primary_key=True)
     letter_name = models.CharField(max_length=250)
     letter_content = models.TextField(null=True, default=None)
     alloc = models.CharField(max_length=250, null=True, default=None)
-    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id')
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', null=True)
 
 
 class Dependent(models.Model):
@@ -305,7 +305,7 @@ class Faqs(models.Model):
     answer = models.CharField(max_length=1000, null=True, default=None)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', related_name='faqs_created',unique=True, null=True)
     imp = models.BooleanField(default=False)
-    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', related_name='faqs')
+    c_id = models.ForeignKey('Company', on_delete=models.CASCADE, db_column='c_id', related_name='faqs',null=True)
 
 class Feedback(models.Model):
     fid = models.BigAutoField(primary_key=True)
@@ -468,7 +468,7 @@ class Kra(models.Model):
     status = models.IntegerField(default=0)
     kra_id = models.IntegerField()
     email_id = models.CharField(max_length=100, null=True, default=None)
-    kra_id = models.ForeignKey('Kra_table', on_delete=models.CASCADE, db_column='kra_id')
+    kra_id = models.ForeignKey('Kra_table', on_delete=models.CASCADE, db_column='kra_id', null=True)
     Measurement = models.IntegerField(null=True, default=0)
     submission_date = models.DateTimeField(default=None)
 
@@ -486,7 +486,7 @@ class Leavetype(models.Model):
     Description = models.TextField(null=True)
     Limit = models.IntegerField(default=0)
     CreationDate = models.DateTimeField(auto_now_add=True)
-    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='leave_types')
+    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='leave_types', null=True)
 
 class Leave_Encashment(models.Model):
     LE_id = models.BigAutoField(primary_key=True)
@@ -587,7 +587,7 @@ class Pdf(models.Model):
     pdf_name = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
     descr = models.TextField()
-    course = models.ForeignKey('Courses', on_delete=models.CASCADE)
+    course = models.ForeignKey('Courses', on_delete=models.CASCADE, null=True)
 
 class Personal_details(models.Model):
     id = models.AutoField(primary_key=True, default=None)
@@ -772,7 +772,7 @@ class Sop(models.Model):
     ratings = models.IntegerField(choices=RATINGS_CHOICES, null=True, blank=True, default=1)
     selfratings = models.IntegerField(default=0)
     remarks = models.CharField(max_length=500, null=True, default=None)
-    d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id')
+    d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id', null=True)
 
 
 class Tasks(models.Model):
@@ -804,9 +804,9 @@ class Tasks(models.Model):
             models.Index(fields=['sop_id']),
             models.Index(fields=['tid']),
         ]
-    d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id', related_name='Tasks')
-    dpt_head = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='dpt_head', related_name='tasks_dpt_head')
-    dpt_auditor = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='dpt_auditor', related_name='tasks_dpt_auditor')
+    d_id = models.ForeignKey('Department', on_delete=models.CASCADE, db_column='d_id', related_name='Tasks', null=True)
+    dpt_head = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='dpt_head', related_name='tasks_dpt_head', null=True)
+    dpt_auditor = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='dpt_auditor', related_name='tasks_dpt_auditor', null=True)
     emp_emailid = models.ForeignKey('Employee', on_delete=models.SET_NULL, null=True, blank=True, db_column='emp_emailid', related_name='tasks_emp_emailid',unique=True)
     job_desc_id = models.ForeignKey('Job_desc', on_delete=models.CASCADE, db_column='job_desc_id', null=True, blank=True, related_name='tasks_job_desc')
     kra_id = models.ForeignKey('Kra_table', on_delete=models.CASCADE, db_column='kra_id', null=True, blank=True, related_name='tasks_kra')
@@ -825,7 +825,7 @@ class Tblleaves(models.Model):
     Status = models.IntegerField()
     IsRead = models.IntegerField()
     emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid',unique=True, null=True)
-    LeaveType = models.ForeignKey('LeaveType', on_delete=models.CASCADE, db_column='LeaveType')
+    LeaveType = models.ForeignKey('LeaveType', on_delete=models.CASCADE, db_column='LeaveType', null=True)
 
 class Todotasks(models.Model):
     tid = models.BigAutoField(primary_key=True)
@@ -851,7 +851,7 @@ class Video(models.Model):
     video_id = models.BigAutoField(primary_key=True)
     video_name = models.CharField(max_length=100)
     location = models.TextField()
-    course_id = models.ForeignKey('Courses', on_delete=models.CASCADE)
+    course_id = models.ForeignKey('Courses', on_delete=models.CASCADE, null=True)
     descr = models.CharField(max_length=200)
 
     class Meta:
@@ -897,7 +897,7 @@ class Kra_desc(models.Model):
     email_id = models.CharField(max_length=100, null=True, default=None)
 
 class Quiz(models.Model):
-    eid = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="quizzes")
+    eid = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="quizzes", null=True)
     title = models.CharField(max_length=100)
     course_title = models.CharField(max_length=100)
     correct = models.IntegerField(default=0)
@@ -911,20 +911,20 @@ class Quiz(models.Model):
 
 # Question Model
 class Question(models.Model):
-    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions")
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="questions", null=True)
     text = models.TextField()  # The question text
     correct_answer = models.TextField()  # Correct answer text
 
 # Option Model
 class Option(models.Model):
-    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options")
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="options", null=True)
     text = models.TextField()  # The option text
     is_correct = models.BooleanField(default=False)  # Marks if this option is the correct answer
 
 # Quiz Attempt Model to track each employee's quiz attempt
 class QuizAttempt(models.Model):
-    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts")
-    employee = models.ForeignKey('Employee', on_delete=models.CASCADE)
+    quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE, related_name="attempts", null=True)
+    employee = models.ForeignKey('Employee', on_delete=models.CASCADE, null=True)
     chosen_options = models.JSONField()  # Store the chosen options as a JSON object (question_id -> chosen option)
     score = models.DecimalField(max_digits=5, decimal_places=2)  # Marks obtained by the employee
     time_taken = models.IntegerField()  # Time taken to complete the quiz
