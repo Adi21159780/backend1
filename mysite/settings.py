@@ -35,14 +35,20 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    'http://127.0.0.1:5173'
+    'http://127.0.0.1:5173',
+    "https://ehappyperformer.com",
+    "http://ehappyperformer.com",
 ]
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
-    'http://127.0.0.1:5173'
+    'http://127.0.0.1:5173',
+    "https://ehappyperformer.com",
+    "http://ehappyperformer.com",
 ]
 CORS_ORIGIN_WHITELIST = [
-    'http://localhost:5173',  # Adjust this to match your frontend URL
+    'http://localhost:5173',
+    "https://ehappyperformer.com",
+    "http://ehappyperformer.com",  # Adjust this to match your frontend URL
 ]
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Store sessions in the database
@@ -62,6 +68,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'corsheaders',
     'rest_framework',
     'happyPerformerBackend',
