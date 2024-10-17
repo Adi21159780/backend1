@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-x(5dx3mmj4*37yh956zl74#t=wvbuib)!87s7)lg&v!9h6sf)a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*', 'http://localhost:5173']
+ALLOWED_HOSTS = ['localhost', 'api.ehappyperformer.com','127.0.0.1']
 
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -36,19 +36,19 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    "https://ehappyperformer.com",
-    "http://ehappyperformer.com",
+    "https://api.ehappyperformer.com",
+    "http://api.ehappyperformer.com",
 ]
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    "https://ehappyperformer.com",
-    "http://ehappyperformer.com",
+    "https://api.ehappyperformer.com",
+    "http://api.ehappyperformer.com",
 ]
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:5173',
-    "https://ehappyperformer.com",
-    "http://ehappyperformer.com",  # Adjust this to match your frontend URL
+    "https://api.ehappyperformer.com",
+    "http://api.ehappyperformer.com",  # Adjust this to match your frontend URL
 ]
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Store sessions in the database
