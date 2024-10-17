@@ -8046,7 +8046,87 @@ def CreateQuiz(request):
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])  # Custom role decorator for authorization
+def GetAllQuizzes(request):
+    if request.method == 'GET':
+        user_email = request.session.get('user_id')
+        if not user_email:
+            return JsonResponse({'error': 'User not authenticated'}, status=403)
 
+        try:
+            user = Employee.objects.get(emp_emailid=user_email)
+
+            if user.emp_role not in ['HR', 'Manager', 'Super Manager']:
+                return JsonResponse({'error': 'You do not have permission to view quizzes'}, status=403)
+
+            # Get all quizzes belonging to the user's company
+            quizzes = Quiz.objects.filter(eid_d_id_c_id=user.d_id.c_id).values(
+                'id', 'title', 'course_title', 'correct', 'wrong', 'total_marks', 
+                'passing', 'total', 'time', 'date', 'status'
+            )
+
+            # Check if quizzes exist
+            if not quizzes.exists():
+                return JsonResponse({'error': 'No quizzes found for your company'}, status=404)
+
+            # Convert to list and format date
+            quiz_list = list(quizzes)
+
+            # Return all quizzes as JSON
+            return JsonResponse(quiz_list, safe=False)
+
+        except Employee.DoesNotExist:
+            return JsonResponse({'error': 'User does not exist'}, status=404)
+
+        except Exception as e:
+            return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@csrf_exempt
+@role_required(['HR', 'Manager', 'Super Manager'])
+def ToggleQuizStatus(request):
+    if request.method == 'POST':
+        user_email = request.session.get('user_id')
+        if not user_email:
+            return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+        try:
+            user = Employee.objects.get(emp_emailid=user_email)
+
+            if user.emp_role not in ['HR', 'Manager', 'Super Manager']:
+                return JsonResponse({'error': 'You do not have permission to toggle quiz status'}, status=403)
+
+            data = json.loads(request.body)
+            quiz_id = data.get('quiz_id')
+            new_status = data.get('status')  # Either 'active' or 'inactive'
+
+            if new_status not in ['active', 'inactive']:
+                return JsonResponse({'error': 'Invalid status value'}, status=400)
+
+            # Find the quiz and ensure it belongs to the user's company
+            try:
+                quiz = Quiz.objects.get(id=quiz_id, eid_d_id_c_id=user.d_id.c_id)
+            except Quiz.DoesNotExist:
+                return JsonResponse({'error': 'Quiz not found or you do not have access'}, status=404)
+
+            # Update quiz status
+            quiz.status = new_status
+            quiz.save()
+
+            return JsonResponse({'message': f'Quiz status updated to {new_status}'}, status=200)
+
+        except Employee.DoesNotExist:
+            return JsonResponse({'error': 'User does not exist'}, status=404)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 @csrf_exempt
@@ -8064,7 +8144,7 @@ def AttemptQuiz(request, quiz_id=None):
     if request.method == 'GET':
         if quiz_id is None:
             # Get all quizzes that belong to the same company as the user
-            quizzes = Quiz.objects.filter(eid__d_id__c_id=company_id).values(
+            quizzes = Quiz.objects.filter(eid_d_id_c_id=company_id,status="active").values(
                 'id', 'title', 'course_title', 'correct', 'wrong', 'total_marks', 
                 'passing', 'total', 'time', 'date', 'status'
             )
@@ -8073,7 +8153,7 @@ def AttemptQuiz(request, quiz_id=None):
             return JsonResponse(list(quizzes), safe=False)
         else:
             # Get a specific quiz if quiz_id is provided and matches the company
-            quiz = get_object_or_404(Quiz, id=quiz_id, eid__d_id__c_id=company_id)
+            quiz = get_object_or_404(Quiz, id=quiz_id, eid_d_id_c_id=company_id)
 
             # Fetch the related questions and options for the quiz
             questions = []
@@ -8146,7 +8226,7 @@ def AttemptQuiz(request, quiz_id=None):
                     score += quiz.correct  # Add correct marks
                     total_correct += 1
                 else:
-                    score -= quiz.wrong  # Subtract wrong marks Because of the fact that we are storing the minus marks on incorrect answer we are adding here if you wish to change this carefully update all the occurrences of marks 
+                    score -= quiz.wrong  # Subtract wrong marks
                     total_wrong += 1
             except Question.DoesNotExist:
                 return JsonResponse({'error': f'Invalid question ID: {question_id}'}, status=400)
@@ -8194,8 +8274,6 @@ def AttemptQuiz(request, quiz_id=None):
 
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-
 
 @csrf_exempt
 def QuizResults(request, quiz_id=None):

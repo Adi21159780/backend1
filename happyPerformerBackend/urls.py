@@ -143,6 +143,8 @@ urlpatterns = [
     # path('Settings/', views.Settings, name='Settings'),    
  # path('Settings/UpdateEmployeePassword/', views.UpdateEmployeePassword, name='UpdateEmployeePassword'),
 #  added dipayan
+    path('ToggleQuizStatus/', views.ToggleQuizStatus, name='ToggleQuizStatus'),
+    path('GetAllQuizzes/', views.GetAllQuizzes, name='GetAllQuizzes'),
     path('jdform/', views.JDForm, name='JDForm'),
     # path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
     path('kraform/', views.KRAForm, name='KRAForm'),
