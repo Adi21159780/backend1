@@ -273,7 +273,7 @@ def Register(request):
             emp_skills = data.get('empSkills')
 
             # Capture the client's IP address
-            office_ip = request.META.get('REMOTE_ADDR')
+            #office_ip = request.META.get('REMOTE_ADDR')
 
             # Check if the company with the exact details exists
             try:
@@ -281,7 +281,7 @@ def Register(request):
                 created = False
             except Company.DoesNotExist:
                 # Create a new company with the fetched IP address
-                company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone, office_ip=office_ip)
+                company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
                 created = True
 
             # Only create departments if the company is newly created
@@ -308,7 +308,7 @@ def Register(request):
                 d_id=first_dept_id
             )
 
-            return JsonResponse({'message': 'Company registration successful', 'office_ip': office_ip}, status=201)
+            return JsonResponse({'message': 'Company registration successful'}, status=201)
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -616,129 +616,38 @@ def FAQsView(request):
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-
 @csrf_exempt
 def ApplyLeave(request):
-    # if request.method == 'GET':
-    #     # Step 1: Fetch Employee Data from Session
-    #     emp_email = request.session.get('emp_emailid')
-    #     if not emp_email:
-    #         print("User not authenticated. No email in session.")
-    #         return JsonResponse({'error': 'User not authenticated'}, status=401)
-
-    #     # Step 2: Fetch Employee's Leave Details
-    #     try:
-    #         employee = Employee.objects.get(emp_emailid=emp_email)
-    #         print(f"Employee found: {employee}")
-    #     except Employee.DoesNotExist:
-    #         print(f"Employee with email {emp_email} not found.")
-    #         return JsonResponse({'error': 'Employee not found'}, status=404)
-
-    #     # Step 3: Fetch and Format Leave Data
-    #     try:
-    #         leaves = Tblleaves.objects.filter(emp_emailid=employee)
-    #         leave_data = [
-    #             {
-    #                 'type': leave.LeaveType.LeaveType,
-    #                 'fromDate': leave.FromDate,
-    #                 'toDate': leave.ToDate,
-    #                 'days': leave.Days,
-    #                 'description': leave.Description,
-    #                 'status': leave.Status,
-    #             }
-    #             for leave in leaves
-    #         ]
-    #         return JsonResponse(leave_data, safe=False, status=200)
-    #     except Exception as e:
-    #         print(f"Error fetching leave data: {e}")
-    #         return JsonResponse({'error': 'Error fetching leave data'}, status=500)
-
-    # elif request.method == 'POST':
-        # Step 1: Parse JSON Data
-    if request.method == 'GET':
-        # Step 1: Fetch Employee Data from Session
-        emp_email = request.session.get('emp_emailid')
-        if not emp_email:
-            print("User not authenticated. No email in session.")
-            return JsonResponse({'error': 'User not authenticated'}, status=401)
-
-        # Step 2: Fetch Employee's Leave Details
-        try:
-            employee = Employee.objects.get(emp_emailid=emp_email)
-            print(f"Employee found: {employee}")
-        except Employee.DoesNotExist:
-            print(f"Employee with email {emp_email} not found.")
-            return JsonResponse({'error': 'Employee not found'}, status=404)
-
-        # Step 3: Fetch and Format Leave Data
-        try:
-            leaves = Tblleaves.objects.filter(emp_emailid=employee)
-            leave_data = [
-                {
-                    'type': leave.LeaveType.LeaveType,
-                    'fromDate': leave.FromDate,
-                    'toDate': leave.ToDate,
-                    'days': leave.Days,
-                    'description': leave.Description,
-                    'status': leave.Status,
-                }
-                for leave in leaves
-            ]
-            return JsonResponse(leave_data, safe=False, status=200)
-        except Exception as e:
-            print(f"Error fetching leave data: {e}")
-            return JsonResponse({'error': 'Error fetching leave data'}, status=500)
-
-    elif request.method == 'POST':
-        # Step 1: Parse JSON Data
+    if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            print("Received data:", data)  # Debugging: Log received data
             leavetype = data.get('leaveType')
             fromdate = data.get('fromDate')
             todate = data.get('toDate')
             description = data.get('leaveDescription')
         except json.JSONDecodeError:
-            print("Invalid JSON data received.")
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
-        # Step 2: Validate Required Fields
-        if not all([leavetype, fromdate, todate, description]):
-            print("Missing required fields in the request.")
-            return JsonResponse({'error': 'Missing required fields'}, status=400)
-
-        # Step 3: Fetch Employee Data
         emp_email = request.session.get('emp_emailid')
         if not emp_email:
-            print("User not authenticated. No email in session.")
             return JsonResponse({'error': 'User not authenticated'}, status=401)
 
         try:
             employee = Employee.objects.get(emp_emailid=emp_email)
-            print(f"Employee found: {employee}")
         except Employee.DoesNotExist:
-            print(f"Employee with email {emp_email} not found.")
             return JsonResponse({'error': 'Employee not found'}, status=404)
 
-        # Step 4: Validate Dates
         try:
             date1 = datetime.strptime(fromdate, "%Y-%m-%d")
             date2 = datetime.strptime(todate, "%Y-%m-%d")
-            if date1 > date2:
-                return JsonResponse({'error': 'From date cannot be after To date'}, status=400)
             days = (date2 - date1).days + 1  # Including both start and end date
-            print(f"Calculated days: {days}")
         except ValueError:
-            print("Invalid date format received.")
             return JsonResponse({'error': 'Invalid date format'}, status=400)
 
-        # Step 5: Fetch Leave Type
-        # Step 5: Fetch Leave Type
         try:
             leave_type = Leavetype.objects.get(LeaveType__iexact=leavetype)
         except Leavetype.DoesNotExist:
-            print(f"Leave type '{leavetype}' does not exist.")
-            return JsonResponse({'error': f"Leave type '{leavetype}' does not exist"}, status=400)
+            return JsonResponse({'error': 'Leave type does not exist'}, status=400)
 
         # Ensure Leavecounttemp record exists or create one with default values
         leave_count, created = Leavecounttemp.objects.get_or_create(
@@ -751,51 +660,23 @@ def ApplyLeave(request):
             }
         )
 
-        # Step 7: Calculate Remaining Leaves
-        # Step 7: Calculate Remaining Leaves
         leave_limit_field = leavetype.lower() + 'leave'
         leave_limit = getattr(leave_count, leave_limit_field, 0)
-        print(f"Leave limit: {leave_limit} for leave type: {leave_limit_field}")
-        print(f"Leave limit: {leave_limit} for leave type: {leave_limit_field}")
 
         final = leave_type.Limit - leave_limit - days
         if final < 0:
-            print("Exceeding leave limits.")
-            print("Exceeding leave limits.")
             return JsonResponse({'error': 'Exceeding leave limits'}, status=400)
 
-        # Step 8: Create Leave Entry
-        try:
-            leave = Tblleaves.objects.create(
-                LeaveType=leave_type,
-                FromDate=fromdate,
-                ToDate=todate,
-                Days=days,
-                Description=description,
-                Status=0,
-                IsRead=0,
-                emp_emailid=employee
-            )
-            print("Leave successfully created.")
-        except Exception as e:
-            print(f"Error creating leave entry: {e}")
-            return JsonResponse({'error': 'Error creating leave entry'}, status=500)
-        # Step 8: Create Leave Entry
-        try:
-            leave = Tblleaves.objects.create(
-                LeaveType=leave_type,
-                FromDate=fromdate,
-                ToDate=todate,
-                Days=days,
-                Description=description,
-                Status=0,
-                IsRead=0,
-                emp_emailid=employee
-            )
-            print("Leave successfully created.")
-        except Exception as e:
-            print(f"Error creating leave entry: {e}")
-            return JsonResponse({'error': 'Error creating leave entry'}, status=500)
+        leave = Tblleaves.objects.create(
+            LeaveType=leave_type,
+            FromDate=fromdate,
+            ToDate=todate,
+            Days=days,
+            Description=description,
+            Status=0,
+            IsRead=0,
+            emp_emailid=employee
+        )
 
         return JsonResponse({'message': 'Leave submitted successfully'}, status=200)
 
@@ -1471,7 +1352,7 @@ def CeoHrAnnouncements(request):
                     body=message,
                     from_email=sender,
                     to=[employee.emp_emailid],
-                    cc=cc,  # Use a list directly
+                    cc=[cc],  # Use a list directly
                 )
 
                 for file in files:
@@ -6432,6 +6313,7 @@ def social_submit_feedback_get(request):
             return JsonResponse({'error': 'User not found'}, status=404)
 
         # Retrieve feedbacks meant for the authenticated user
+        # Use emp_emailid as it is (not emp_emailid_id)
         feedbacks = Feedback.objects.filter(emp_emailid=user).values(
             'fid', 'reason', 'from_email', 'date'
         )
@@ -6444,11 +6326,13 @@ def social_submit_feedback_get(request):
             }
             for fb in feedbacks
         ]
-        
+
         return JsonResponse(feedback_list, safe=False)
 
     else:
         return JsonResponse({'error': 'Only GET requests are allowed'}, status=405)
+
+
 
 
 
@@ -6483,20 +6367,16 @@ def social_submit_feedback_post(request):
             except Employee.DoesNotExist:
                 return JsonResponse({'error': 'Employee does not exist or does not belong to your company'}, status=404)
 
-            # Save feedback
-            feedback = Feedback(
-                emp_emailid=employee,
+            # Save feedback, using the correct field for the foreign key reference
+            feedback = Feedback.objects.create(
+                emp_emailid_id=employee.emp_emailid,  # Use emp_emailid_id instead of emp_emailid
                 skill=skill,
                 from_email=from_email,
                 reason=reason
             )
-            feedback.save()
 
             # Retrieve feedbacks only for employees in the same company
-            # Step 1: Get all employee email IDs in the user's company
             employee_emails = Employee.objects.filter(d_id__c_id=user_company).values_list('emp_emailid', flat=True)
-
-            # Step 2: Filter feedbacks using the __in lookup
             feedbacks = Feedback.objects.filter(emp_emailid__in=employee_emails).values(
                 'emp_emailid__emp_emailid', 'skill', 'from_email', 'reason', 'date'
             )
@@ -7054,7 +6934,7 @@ def task_list(request):
     if request.method == 'GET':
         try:
             # Fetch all tasks from the database
-            tasks = Todotasks1.objects.all().values('id', 'title', 'completed')  # Adjust fields as necessary
+            tasks = Todotasks.objects.all().values('id', 'title', 'completed')  # Adjust fields as necessary
             # Convert the queryset to a list of dictionaries
             task_list = list(tasks)
             return JsonResponse(task_list, safe=False)
