@@ -3669,9 +3669,13 @@ def ManagerRating(request):
 @csrf_exempt
 def FAQManagement(request):
     if request.method == 'GET':
-        faqs = Faqs.objects.all()
+        c_id = request.session.get('c_id')  # Retrieve company ID from session
+        if not c_id:
+            return JsonResponse({'error': 'User not authenticated or company ID not found'}, status=401)
 
-        if not faqs:
+        faqs = Faqs.objects.filter(c_id=c_id)  # Filter FAQs by the logged-in user's company ID
+
+        if not faqs.exists():
             return JsonResponse({'message': 'No FAQs pending'})
 
         faqs_list = []
@@ -3690,26 +3694,40 @@ def FAQManagement(request):
     elif request.method == 'POST':
         try:
             data = json.loads(request.body)
-            faq_id = request.GET.get('faq_id')
-            faq, created = Faqs.objects.update_or_create(faq_id=faq_id, defaults=data)
+            faq_id = data.get('faq_id')  # Get the FAQ ID from the POST data
+            answer = data.get('answer')    # Get the answer from the POST data
+            
+            if not faq_id or answer is None:
+                return JsonResponse({'error': 'FAQ ID and answer are required'}, status=400)
+
+            # Update or create the FAQ with the provided FAQ ID and answer
+            faq, created = Faqs.objects.update_or_create(
+                faq_id=faq_id,
+                defaults={'answer': answer}
+            )
             return JsonResponse({'message': 'FAQ updated successfully' if not created else 'FAQ created successfully'})
 
         except Exception as e:
             return HttpResponseBadRequest({'error': str(e)})
 
     elif request.method == 'DELETE':
+        faq_id = request.GET.get('faq_id')  # Get FAQ ID from the query parameters
+        if not faq_id:
+            return JsonResponse({'error': 'FAQ ID is required'}, status=400)
+
         try:
-            faq_id = request.GET.get('faq_id')  # Retrieve the faq_id from query parameters
-            faq = Faqs.objects.get(faq_id=faq_id)  # Fetch the FAQ object
-            faq.delete()  # Delete the FAQ object
-            return JsonResponse({'message': 'FAQ deleted successfully.'}, status=200)
-        except Faqs.DoesNotExist:
+            faq = Faqs.objects.filter(faq_id=faq_id, c_id=request.session.get('c_id'))  # Ensure the user can only delete FAQs from their company
+            if faq.exists():
+                faq.delete()  # Delete the FAQ
+                return JsonResponse({'message': 'FAQ deleted successfully.'}, status=204)  # No Content response
             return JsonResponse({'error': 'FAQ not found.'}, status=404)
+
         except Exception as e:
-            return HttpResponseBadRequest({'error': str(e)})
+            return JsonResponse({'error': str(e)}, status=500)
 
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=400)
+
 
 
 
