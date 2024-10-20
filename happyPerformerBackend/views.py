@@ -30,6 +30,8 @@ from django.core.files.storage import default_storage
 import pandas as pd
 from django.db.models import Max
 from datetime import timedelta
+import traceback
+
 
 
 import logging
@@ -6505,24 +6507,11 @@ def markattendance(request):
                 logging.error(f"Employee with email {emp_email} not found")
                 return JsonResponse({'error': 'Employee not found'}, status=404)
 
-            # Get company office IP and check if it exists
-            company = employee.d_id.c_id
-            company_office_ip = company.office_ip
-            logging.debug(f"Company Office IP: {company_office_ip}")
-
-            if not company_office_ip:
-                logging.error(f"No office IP configured for company: {company}")
-                return JsonResponse({'error': 'Company network is not configured'}, status=500)
-
-            # Check if employee IP matches company office IP
-            if employee_ip != company_office_ip:
-                logging.error(f"Employee IP ({employee_ip}) does not match company IP ({company_office_ip})")
-                return JsonResponse({'error': 'Attendance can only be marked from the company network'}, status=403)
-
             # Proceed with marking attendance
             Attendance.objects.create(
                 emp_emailid=employee,  # Use the correct field name
                 user_ip=employee_ip,  # Use the correct field name
+                log_type=log_type,
                 latitude=latitude,
                 longitude=longitude,
                 datetime_log=timezone.now().isoformat(),  # Use current datetime in ISO format
