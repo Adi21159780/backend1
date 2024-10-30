@@ -1449,24 +1449,31 @@ def AddNewEmployee(request):
 
     elif request.method == 'POST':
         data = json.loads(request.body)
-        name = data.get('emp_name')
-        email = data.get('emp_emailid')
-        phone = data.get('emp_phone')
-        department_id = data.get('d_id')
+        name = data.get('fullName')
+        email = data.get('email')
+        phone = data.get('phone')
+        department_id = data.get('department')
         skills = data.get('skills')
+        emp_role = data.get('emp_role')
+
+        valid_roles = ['HR', 'Super Manager', 'Manager', 'Employee']
+        if emp_role not in valid_roles:
+            return JsonResponse({'error': 'Invalid role selected'}, status=400)
+
 
         company = Company.objects.filter(c_id=company_id).first()
         department = Department.objects.filter(d_id=department_id).first()
 
-        if company.emp_limit <= Employee.objects.filter(d_id__c_id=company_id).count():
-            return JsonResponse({'error': 'Employee limit reached'}, status=403)
+        # if company.emp_limit <= Employee.objects.filter(d_id__c_id=company_id).count():
+        #     return JsonResponse({'error': 'Employee limit reached'}, status=403)
 
         Employee.objects.create(
             emp_name=name,
             emp_emailid=email,
             emp_phone=phone,
-            d_id=department,
             emp_skills=skills,
+            emp_role=emp_role,  # Assign the validated role
+            d_id=department,
         )
 
         return JsonResponse({'success': 'Employee created successfully'}, status=201)
@@ -1493,6 +1500,9 @@ def UpdateDeleteEmployee(request):
         try:
             email_id = request.GET.get('emailId')
             employee = Employee.objects.get(emp_emailid=email_id, d_id__c_id=company_id)
+            if Quiz.objects.filter(eid=employee).exists():
+                return JsonResponse({'error': 'Cannot delete employee with existing quizzes'}, status=400)
+
             employee.delete()
             return JsonResponse({'success': 'Employee deleted successfully'}, status=200)
         except Employee.DoesNotExist:
