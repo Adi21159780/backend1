@@ -311,7 +311,6 @@ def Register(request):
             return JsonResponse({'message': 'Company registration successful'}, status=201)
 
         except Exception as e:
-	    print("Exception___ : ",e)
             return JsonResponse({'error': str(e)}, status=500)
 
             return JsonResponse({'message': 'Company registration successful'}, status=201)
