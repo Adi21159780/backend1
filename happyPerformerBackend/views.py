@@ -285,7 +285,6 @@ def Register(request):
                 # Create a new company with the fetched IP address
                 company = Company.objects.create(c_name=name, c_addr=addr, c_phone=phone)
                 created = True
-
             # Only create departments if the company is newly created
             if created:
                 first_dept_id = None
@@ -309,10 +308,10 @@ def Register(request):
                 emp_pwd=emp_pwd,
                 d_id=first_dept_id
             )
-
             return JsonResponse({'message': 'Company registration successful'}, status=201)
 
         except Exception as e:
+	    print("Exception___ : ",e)
             return JsonResponse({'error': str(e)}, status=500)
 
             return JsonResponse({'message': 'Company registration successful'}, status=201)

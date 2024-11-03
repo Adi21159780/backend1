@@ -27,8 +27,7 @@ SECRET_KEY = 'django-insecure-x(5dx3mmj4*37yh956zl74#t=wvbuib)!87s7)lg&v!9h6sf)a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', 'api.ehappyperformer.com','127.0.0.1']
-
+ALLOWED_HOSTS = ['localhost', 'https://api.ehappyperformer.com','http://api.ehappyperformer.com','127.0.0.1']
 CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
@@ -37,7 +36,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     "https://api.ehappyperformer.com",
-    "http://api.ehappyperformer.com",
+    "https://www.ehappyperformer.com",
 ]
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
@@ -48,7 +47,8 @@ CSRF_TRUSTED_ORIGINS = [
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:5173',
     "https://api.ehappyperformer.com",
-    "http://api.ehappyperformer.com",  # Adjust this to match your frontend URL
+    "http://api.ehappyperformer.com",
+    "https://www.ehappyperformer.com",  # Adjust this to match your frontend URL
 ]
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Store sessions in the database
@@ -112,9 +112,9 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'happyachiever_db',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'NAME': 'ehappyperformer_db',
+        'USER': 'happyperformer',
+        'PASSWORD': 'happyperformer',
         'HOST': 'localhost',
         'PORT': '5432',
     }
