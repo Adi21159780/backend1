@@ -7042,27 +7042,60 @@ def attrition_choice_data(request):
     return JsonResponse(data, safe=False)
 
 @csrf_exempt
-def poi_list_create(request):
+def poi_list_create(request,emp_emailid):
     if request.method == 'GET':
-        pois = POI.objects.all().values()
-        return JsonResponse(list(pois), safe=False)
+        try:
+            poi_record = Poifiles_new1.objects.filter(Emp_id__emp_emailid=emp_emailid).values(
+                'Investment_1', 'actualAmount_80C', 'Status1',
+                'Investment_2', 'actualAmount_80D', 'Status2',
+                'Investment_3', 'OIE_actualAmount', 'Status3',
+                'Investment_4', 'OSI_actualAmount', 'Status4'
+            ).first()
+            if poi_record:
+                return JsonResponse({'poi_record': poi_record}, safe=False)
+            return JsonResponse({'error': 'No records found for the employee'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
     
-    elif request.method == 'POST':
-        category = request.POST.get('category')
-        declared_amount = request.POST.get('declaredAmount')
-        actual_amount = request.POST.get('actualAmount')
-        file = request.FILES.get('file')
+    # elif request.method == 'POST':
+    #     category = request.POST.get('category')
+    #     declared_amount = request.POST.get('declaredAmount')
+    #     actual_amount = request.POST.get('actualAmount')
+    #     file = request.FILES.get('file')
 
-        poi = POI(category=category, declared_amount=declared_amount, actual_amount=actual_amount, file=file)
-        poi.save()
+    #     poi = POI(category=category, declared_amount=declared_amount, actual_amount=actual_amount, file=file)
+    #     poi.save()
 
-        return JsonResponse({
-            'id': poi.id,
-            'category': poi.category,
-            'declaredAmount': poi.declared_amount,
-            'actualAmount': poi.actual_amount,
-            'fileUrl': poi.file.url if poi.file else None,
-        }, status=201)
+    #     return JsonResponse({
+    #         'id': poi.id,
+    #         'category': poi.category,
+    #         'declaredAmount': poi.declared_amount,
+    #         'actualAmount': poi.actual_amount,
+    #         'fileUrl': poi.file.url if poi.file else None,
+    #     }, status=201)
+        
+@csrf_exempt
+def toggle_investment_status(request, emp_id, investment_field):
+    if request.method == 'POST':
+        try:
+            poi_record = get_object_or_404(Poifiles_new1, Emp_id=emp_id)
+            # Map the investment field to the status fields in the model
+            status_field_map = {
+                'Investment_1': 'Status1',
+                'Investment_2': 'Status2',
+                'Investment_3': 'Status3',
+                'Investment_4': 'Status4'
+            }
+            status_field = status_field_map.get(investment_field)
+            if status_field:
+                current_status = getattr(poi_record, status_field)
+                new_status = 'Verified' if current_status == 'Pending' else 'Pending'
+                setattr(poi_record, status_field, new_status)
+                poi_record.save()
+                return JsonResponse({'status': 'success', 'new_status': new_status})
+            return JsonResponse({'error': 'Invalid investment field'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
 @csrf_exempt
 def poi_delete(request, poi_id):
@@ -8724,3 +8757,35 @@ def AddPersonalDetails(request):
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
+
+@csrf_exempt
+def Letters1(request):
+    if 'emp_emailid' in request.session and 'c_id' in request.session:
+        emp_emailid = request.session['emp_emailid']
+        c_id = request.session['c_id']
+
+        try:
+            # Retrieve the company based on the logged-in user's c_id
+            company = get_object_or_404(Company, pk=c_id)
+
+            # Filter and fetch all custom letters associated with this company
+            custom_letters = Custom_letters.objects.filter(c_id=company)
+
+            # Prepare the list of letters with their names and content for the response
+            allocated_letters = [
+                {
+                    'letter_name': letter.letter_name.replace('_', ' ').title(),
+                    'letter_content': letter.letter_content
+                }
+                for letter in custom_letters
+            ]
+
+            return JsonResponse({'allocated_letters': allocated_letters})
+
+        except Company.DoesNotExist:
+            return JsonResponse({'error': 'Company not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    else:
+        return JsonResponse({'error': 'Required session data not found'}, status=401)

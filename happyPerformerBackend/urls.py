@@ -20,7 +20,7 @@ urlpatterns = [
     path('FormReviewRespose/', views.FormReviewRespose, name='FormReviewRespose'),
     path('FormsSubmitResponse/', views.FormsSubmitResponse, name='FormsSubmitResponse'),
     path('Kra/', views.KraList, name='KraList'),
-    path('Letters/', views.Letters, name='Letters'),
+    path('Letters/', views.Letters1, name='Letters1'),
     path('FAQsView/', views.FAQsView, name='FAQsView'),
     path('ApplyLeave/', views.ApplyLeave, name='ApplyLeave'),
     path('LeaveHistory/', views.LeaveHistory, name='LeaveHistory'),
@@ -137,7 +137,7 @@ urlpatterns = [
     path('attrition/reasons/', views.attrition_reason_data, name='attrition-reasons-data'),
     path('attrition/gender/', views.attrition_gender_data, name='attrition-gender-data'),
     path('attrition/choice/', views.attrition_choice_data, name='attrition-choice-data'),
-    path('poi/', views.poi_list_create, name='poi_list_create'),  # Handles GET and POST requests
+    path('poi/<str:emp_emailid>/', views.poi_list_create, name='poi_list_create'),  # Handles GET and POST requests
     path('poi/<int:poi_id>/', views.poi_delete, name='poi_delete'),
 
     # path('Settings/', views.Settings, name='Settings'),    
@@ -175,6 +175,7 @@ urlpatterns = [
     path('benefits-cases/', views.BenefitsCases, name='benefits_cases'),
     path('travel-expense-cases/', views.TravelExpenseCases, name='travel_expense_cases'),
     path('compensation-payroll-cases/', views.CompensationPayrollCases, name='compensation_payroll_cases'),
+    path('poitoggle/<str:emp_id>/<str:investment_field>/', views.toggle_investment_status, name='toggle_investment_status'),
     
 ]
 
