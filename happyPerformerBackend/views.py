@@ -5281,34 +5281,41 @@ def AllocateFormView(request):
     if not user_name or not c_id:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
 
-    form_name = request.GET.get('form_name')
+    # Get form name from POST body
+    data = json.loads(request.body)
+    form_name = data.get('form_name')
+    print("Form name from POST:", form_name)
+
     if not form_name:
         return JsonResponse({'error': 'Form name is required'}, status=400)
 
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
             allocated_employees = data.get('allocated_employee')
+            if not allocated_employees:
+                return JsonResponse({'error': 'Allocated employees are missing'}, status=400)
+
             allocated_employee_str = ", ".join(allocated_employees)
+            print("Allocated employees as string:", allocated_employee_str)
 
             custom_form = Custom_forms.objects.get(form_name=form_name, c_id=company_id)
+            print("Custom form found:", custom_form)
+
             custom_form.alloc = allocated_employee_str
             custom_form.save()
+            print("Form allocation updated successfully.")
 
-            # Send emails to allocated employees
-            for emp_name in allocated_employees:
-                emp = Employee.objects.get(emp_name=emp_name)
-                to_email = emp.emp_emailid
+            return JsonResponse({'message': 'Form allocated successfully'}, status=200)  # Added explicit status code
 
-                # Send email code here
-
-            return JsonResponse({'message': 'Form allocated successfully'})
         except Custom_forms.DoesNotExist:
+            print("Form not found with name:", form_name, "and company_id:", company_id)
             return JsonResponse({'error': 'Form not found'}, status=404)
         except Exception as e:
+            print("Unexpected error:", str(e))
             return JsonResponse({'error': str(e)}, status=500)
 
     else:
+        print("Received non-POST request. Method:", request.method)
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
 
 
