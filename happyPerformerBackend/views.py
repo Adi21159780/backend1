@@ -620,53 +620,80 @@ def FAQsView(request):
 def ApplyLeave(request):
     if request.method == 'POST':
         try:
+            # Parse the request body to get the data
             data = json.loads(request.body)
             leavetype = data.get('leaveType')
             fromdate = data.get('fromDate')
             todate = data.get('toDate')
             description = data.get('leaveDescription')
+
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
+        # Check if user is authenticated through session
         emp_email = request.session.get('emp_emailid')
         if not emp_email:
             return JsonResponse({'error': 'User not authenticated'}, status=401)
 
         try:
+            # Retrieve employee record based on email
             employee = Employee.objects.get(emp_emailid=emp_email)
         except Employee.DoesNotExist:
             return JsonResponse({'error': 'Employee not found'}, status=404)
 
         try:
+            # Parse and validate the date formats
             date1 = datetime.strptime(fromdate, "%Y-%m-%d")
             date2 = datetime.strptime(todate, "%Y-%m-%d")
-            days = (date2 - date1).days + 1  # Including both start and end date
+
+            # Validate that fromdate is not later than todate
+            if date1 > date2:
+                return JsonResponse({'error': 'From date cannot be later than To date'}, status=400)
+
+            days = (date2 - date1).days + 1  # Include both start and end dates
         except ValueError:
             return JsonResponse({'error': 'Invalid date format'}, status=400)
 
         try:
+            # Retrieve the leave type
             leave_type = Leavetype.objects.get(LeaveType__iexact=leavetype)
         except Leavetype.DoesNotExist:
             return JsonResponse({'error': 'Leave type does not exist'}, status=400)
 
-        # Ensure Leavecounttemp record exists or create one with default values
+        # Ensure Leavecounttemp record exists or create a default one
         leave_count, created = Leavecounttemp.objects.get_or_create(
             emp_emailid=emp_email,
             defaults={
                 'casualleave': 15,
                 'medicalleave': 15,
                 'lopleave': 365,
-                'earnedleave': 20  # Set a default value for earnedleave if needed
+                'earnedleave': 20  # Set default values as needed
             }
         )
 
-        leave_limit_field = leavetype.lower() + 'leave'
+        # Mapping the leave type to the correct field
+        leave_type_mapping = {
+            'Casual Leave': 'casualleave',
+            'Medical Leave': 'medicalleave',
+            'LOP Leave': 'lopleave',
+            'Earned Leave': 'earnedleave'
+        }
+
+        leave_limit_field = leave_type_mapping.get(leavetype, '').lower()
+
+        # Validate if the field exists in the Leavecounttemp model
+        if not leave_limit_field:
+            return JsonResponse({'error': 'Invalid leave type provided'}, status=400)
+
         leave_limit = getattr(leave_count, leave_limit_field, 0)
 
-        final = leave_type.Limit - leave_limit - days
+
+
+        final = leave_limit - days
         if final < 0:
             return JsonResponse({'error': 'Exceeding leave limits'}, status=400)
 
+        # Create the leave record
         leave = Tblleaves.objects.create(
             LeaveType=leave_type,
             FromDate=fromdate,
@@ -682,7 +709,6 @@ def ApplyLeave(request):
 
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
-
 
 
 
