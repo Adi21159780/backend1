@@ -7286,24 +7286,25 @@ def JDForm(request):
 @role_required(['Manager', 'Super Manager'])
 def KRAForm(request):
     company_id = request.session.get('c_id')
-    user_name = request.session.get('emp_name')
-    
+    user_name = request.session.get('emp_emailid')
+    print(f"Session Company ID: {company_id}, User Email: {user_name}")
+
     if not company_id or not user_name:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
-    
+
     if request.method == 'GET':
         try:
-            # Fetch all employee email IDs
-            employees = Employee.objects.values_list('emp_emailid', flat=True)
+            employees = Employee.objects.filter(
+                d_id__in=Department.objects.filter(c_id=company_id)
+            ).values_list('emp_emailid', flat=True)
             return JsonResponse({'employee_email_ids': list(employees)}, status=200)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
-    
+
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            
-            # Extracting the fields from the JSON payload
+
             kras = data.get('kras', [])
             email_ids = data.get('email_ids', [])
             submission_date = data.get('submission_date')
@@ -7316,42 +7317,32 @@ def KRAForm(request):
                 weightage = kra_data.get('weightage')
                 kpi = kra_data.get('kpi')
                 measurement = kra_data.get('measurement')
-                ratings = kra_data.get('ratings', None)  # Use default if not provided
 
                 if not kra or not weightage or not kpi or not measurement:
                     return JsonResponse({'error': 'Incomplete KRA data'}, status=400)
 
-                # Creating KRA records for each employee
+                # Create KRA records for each employee
                 for email_id in email_ids:
                     if not Employee.objects.filter(emp_emailid=email_id).exists():
                         return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
 
-                    # Create a new Kra_table instance
-                    kra_table_instance = Kra_table.objects.create()
-
-                    # Create a new Kra instance with the kra_id from Kra_table
-                    kra_instance = Kra.objects.create(
+                    # Create an entry in the Kra_desc table
+                    Kra_desc.objects.create(
                         KRA=kra,
                         Weightage=weightage,
                         KPI=kpi,
                         Measurement=measurement,
-                        email_id=email_id,
                         submission_date=submission_date,
-                        ratings=ratings or 0,  # Provide a default value for ratings
-                        kra_id=kra_table_instance  # Assign the Kra_table instance
+                        email_id=email_id
                     )
-                    kra_instance.save()
 
-            return JsonResponse({'status': 'KRA(s) assigned successfully'}, status=201)
+            return JsonResponse({'message': 'KRA form submitted successfully!'}, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        except KeyError as e:
-            return JsonResponse({'error': f'Missing key: {str(e)}'}, status=400)
+            return JsonResponse({'error': 'Invalid JSON format'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 @csrf_exempt
