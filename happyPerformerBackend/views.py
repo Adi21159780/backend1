@@ -655,21 +655,25 @@ def ApplyLeave(request):
             return JsonResponse({'error': 'Invalid date format'}, status=400)
 
         try:
-            # Retrieve the leave type
-            leave_type = Leavetype.objects.get(LeaveType__iexact=leavetype)
+            # Access the company through the employee's department
+            leave_type = Leavetype.objects.get(LeaveType__iexact=leavetype, company_id=employee.d_id.c_id)
+
+
         except Leavetype.DoesNotExist:
             return JsonResponse({'error': 'Leave type does not exist'}, status=400)
 
-        # Ensure Leavecounttemp record exists or create a default one
-        leave_count, created = Leavecounttemp.objects.get_or_create(
-            emp_emailid=emp_email,
-            defaults={
-                'casualleave': 15,
-                'medicalleave': 15,
-                'lopleave': 365,
-                'earnedleave': 20  # Set default values as needed
-            }
-        )
+        # Check if the Leavecounttemp record exists
+        if Leavecounttemp.objects.filter(emp_emailid=emp_email).exists():
+            leave_count = Leavecounttemp.objects.get(emp_emailid=emp_email)
+        else:
+            # Create a new Leavecounttemp record with default values
+            leave_count = Leavecounttemp.objects.create(
+                emp_emailid=emp_email,
+                casualleave=15,
+                medicalleave=15,
+                lopleave=365,
+                earnedleave=20  # Set default values as needed
+            )
 
         # Mapping the leave type to the correct field
         leave_type_mapping = {
@@ -686,8 +690,6 @@ def ApplyLeave(request):
             return JsonResponse({'error': 'Invalid leave type provided'}, status=400)
 
         leave_limit = getattr(leave_count, leave_limit_field, 0)
-
-
 
         final = leave_limit - days
         if final < 0:
@@ -709,6 +711,7 @@ def ApplyLeave(request):
 
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
+
 
 
 

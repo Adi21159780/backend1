@@ -1,36 +1,31 @@
-from django.db.models.signals import post_migrate
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.apps import apps
+from .models import *   
+import logging
 
-@receiver(post_migrate)
-def create_default_leave_types(sender, **kwargs):
-    if sender.name == 'happyPerformerBackend':  # Ensure it only runs for your specific app
+logger = logging.getLogger(__name__)
+
+@receiver(post_save, sender=Company)
+def create_default_leave_types(sender, instance, created, **kwargs):
+    if created:
+        logger.info(f"Creating default leave types for company ID {instance.c_id}")
         Leavetype = apps.get_model('happyPerformerBackend', 'Leavetype')
-        Company = apps.get_model('happyPerformerBackend', 'Company')
-
-        # Fetch the first available company; modify as necessary if you have specific company logic
-        company = Company.objects.first()
+        leave_types = [
+            {'LeaveType': 'Casual Leave', 'Description': 'Casual Leave Description', 'Limit': 15},
+            {'LeaveType': 'Medical Leave', 'Description': 'Medical Leave Description', 'Limit': 15},
+            {'LeaveType': 'Earned Leave', 'Description': 'Earned Leave Description', 'Limit': 20},
+            {'LeaveType': 'LOP Leave', 'Description': 'LOP Leave Description', 'Limit': 20},
+        ]
         
-        if company:
-            # Define the desired leave types dynamically in a list of dictionaries
-            leave_types = [
-                {'LeaveType': 'Casual Leave', 'Description': 'Casual Leave Description', 'Limit': 15},
-                {'LeaveType': 'Medical Leave', 'Description': 'Medical Leave Description', 'Limit': 15},
-                {'LeaveType': 'Earned Leave', 'Description': 'Earned Leave Description', 'Limit': 20},
-                {'LeaveType': 'LOP Leave', 'Description': 'LOP Leave Description', 'Limit': 20},
-            ]
-
-            # Iterate over each leave type and add it if it does not exist
-            for leave in leave_types:
-                leavetype_obj, created = Leavetype.objects.get_or_create(
+        for leave in leave_types:
+            if not Leavetype.objects.filter(LeaveType=leave['LeaveType'], company=instance).exists():
+                Leavetype.objects.create(
                     LeaveType=leave['LeaveType'],
-                    company=company,
-                    defaults={
-                        'Description': leave['Description'],
-                        'Limit': leave['Limit'],
-                    }
+                    company=instance,
+                    Description=leave['Description'],
+                    Limit=leave['Limit']
                 )
-                if created:
-                    print(f"Leave type '{leave['LeaveType']}' created.")
-                else:
-                    print(f"Leave type '{leave['LeaveType']}' already exists.")
+                logger.info(f"Leave type '{leave['LeaveType']}' created for company ID {instance.c_id}.")
+            else:
+                logger.info(f"Leave type '{leave['LeaveType']}' already exists for company ID {instance.c_id}.")
