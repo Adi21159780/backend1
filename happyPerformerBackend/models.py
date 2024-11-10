@@ -1136,3 +1136,12 @@ class Poifiles_new1(models.Model):
 
     Emp_id = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None, unique=True,
                                null=True)
+
+class Todotasks1(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    title = models.CharField(max_length=255)
+    completed = models.BooleanField(default=False)
+    emp_emailid=models.CharField(max_length=100, null=True, default=None)
+
+    def _str_(self):
+        return self.title
