@@ -6980,80 +6980,80 @@ def other_income(request):
         
 
 # TodoList
-@csrf_exempt
-def task_list(request):
-    if request.method == 'GET':
-        try:
-            # Fetch all tasks from the database
-            tasks = Todotasks.objects.all().values('id', 'title', 'completed')  # Adjust fields as necessary
-            # Convert the queryset to a list of dictionaries
-            task_list = list(tasks)
-            return JsonResponse(task_list, safe=False)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+# @csrf_exempt
+# def task_list(request):
+#     if request.method == 'GET':
+#         try:
+#             # Fetch all tasks from the database
+#             tasks = Todotasks.objects.all().values('id', 'title', 'completed')  # Adjust fields as necessary
+#             # Convert the queryset to a list of dictionaries
+#             task_list = list(tasks)
+#             return JsonResponse(task_list, safe=False)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
 
-    elif request.method == 'POST':
-        try:
-            # Parse the incoming data from the request
-            data = json.loads(request.body)
-            title = data.get('text', '')
-            completed = data.get('isCompleted', False)
+#     elif request.method == 'POST':
+#         try:
+#             # Parse the incoming data from the request
+#             data = json.loads(request.body)
+#             title = data.get('text', '')
+#             completed = data.get('isCompleted', False)
 
-            # Create a new task
-            new_task = Todotasks1(title=title, completed=completed)
-            new_task.save()
+#             # Create a new task
+#             new_task = Todotasks1(title=title, completed=completed)
+#             new_task.save()
 
-            return JsonResponse({'message': 'Task created successfully'}, status=201)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
+#             return JsonResponse({'message': 'Task created successfully'}, status=201)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
 
-@csrf_exempt
-def task_delete(request, task_id):
-    if request.method == 'DELETE':
-        try:
-            # Fetch the task by its ID
-            task = Todotasks1.objects.get(id=task_id)
-            task.delete()
-            return JsonResponse({'message': 'Task deleted successfully'}, status=200)
-        except Todotasks1.DoesNotExist:
-            return JsonResponse({'error': 'Task not found'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
-    else:
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
+# @csrf_exempt
+# def task_delete(request, task_id):
+#     if request.method == 'DELETE':
+#         try:
+#             # Fetch the task by its ID
+#             task = Todotasks1.objects.get(id=task_id)
+#             task.delete()
+#             return JsonResponse({'message': 'Task deleted successfully'}, status=200)
+#         except Todotasks1.DoesNotExist:
+#             return JsonResponse({'error': 'Task not found'}, status=404)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
+#     else:
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
     
 
-@csrf_exempt
-def task_update(request, task_id):
-    if request.method == 'PUT':
-        try:
-            # Fetch the task by its ID
-            task = Todotasks1.objects.get(id=task_id)
+# @csrf_exempt
+# def task_update(request, task_id):
+#     if request.method == 'PUT':
+#         try:
+#             # Fetch the task by its ID
+#             task = Todotasks1.objects.get(id=task_id)
             
-            # Parse the request body
-            data = json.loads(request.body)
+#             # Parse the request body
+#             data = json.loads(request.body)
             
-            # Update the task attributes
-            task.title = data.get('title', task.title)
-            task.completed = data.get('completed', task.completed)
-            task.save()
+#             # Update the task attributes
+#             task.title = data.get('title', task.title)
+#             task.completed = data.get('completed', task.completed)
+#             task.save()
             
-            return JsonResponse({
-                'message': 'Task updated successfully',
-                'task': {
-                    'id': task.id,
-                    'title': task.title,
-                    'completed': task.completed
-                }
-            }, status=200)
-        except Todotasks1.DoesNotExist:
-            return JsonResponse({'error': 'Task not found'}, status=404)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
-    else:
-        return JsonResponse({'error': 'Invalid request method'}, status=405)
+#             return JsonResponse({
+#                 'message': 'Task updated successfully',
+#                 'task': {
+#                     'id': task.id,
+#                     'title': task.title,
+#                     'completed': task.completed
+#                 }
+#             }, status=200)
+#         except Todotasks1.DoesNotExist:
+#             return JsonResponse({'error': 'Task not found'}, status=404)
+#         except json.JSONDecodeError:
+#             return JsonResponse({'error': 'Invalid JSON'}, status=400)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
+#     else:
+#         return JsonResponse({'error': 'Invalid request method'}, status=405)
     
 
 
@@ -8816,3 +8816,85 @@ def Letters1(request):
 
     else:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
+
+@csrf_exempt
+def task_list1(request):
+    emp_emailid = request.session.get('emp_emailid')  # Get the logged-in emp_emailid from the session
+
+    if not emp_emailid:
+        return JsonResponse({'error': 'User not logged in'}, status=401)
+
+    if request.method == 'GET':
+        try:
+            # Fetch tasks only for the logged-in user's emp_emailid
+            tasks = Todotasks1.objects.filter(emp_emailid=emp_emailid).values('id', 'title', 'completed')
+            task_list = list(tasks)
+            return JsonResponse(task_list, safe=False)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    elif request.method == 'POST':
+        try:
+            # Parse incoming data
+            data = json.loads(request.body)
+            title = data.get('text', '')
+            completed = data.get('isCompleted', False)
+
+            # Create a new task with the logged-in user's emp_emailid
+            new_task = Todotasks1(title=title, completed=completed, emp_emailid=emp_emailid)
+            new_task.save()
+
+            return JsonResponse({'message': 'Task created successfully'}, status=201)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    else:
+        return JsonResponse({'error': 'Invalid HTTP method'}, status=400)
+
+
+@csrf_exempt
+def task_update(request, task_id):
+    if request.method == 'PUT':
+        try:
+            # Fetch the task by its ID
+            task = Todotasks1.objects.get(id=task_id)
+            
+            # Parse the request body
+            data = json.loads(request.body)
+            
+            # Update the task attributes
+            task.title = data.get('title', task.title)
+            task.completed = data.get('completed', task.completed)
+            task.save()
+            
+            return JsonResponse({
+                'message': 'Task updated successfully',
+                'task': {
+                    'id': task.id,
+                    'title': task.title,
+                    'completed': task.completed
+                }
+            }, status=200)
+        except Todotasks1.DoesNotExist:
+            return JsonResponse({'error': 'Task not found'}, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    
+@csrf_exempt
+def task_delete(request, task_id):
+    if request.method == 'DELETE':
+        try:
+            # Fetch the task by its ID
+            task = Todotasks1.objects.get(id=task_id)
+            task.delete()
+            return JsonResponse({'message': 'Task deleted successfully'}, status=200)
+        except Todotasks1.DoesNotExist:
+            return JsonResponse({'error': 'Task not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
