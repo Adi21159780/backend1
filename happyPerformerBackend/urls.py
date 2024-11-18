@@ -113,6 +113,7 @@ urlpatterns = [
     #added
     path('socialget/', views.social_submit_feedback_get, name='social_submit_feedback_get'),
     path('socialpost/', views.social_submit_feedback_post, name='social_submit_feedback_post'),
+    path('socialreact/<int:feedback_id>/', views.social_add_reaction, name='social_add_reaction'),
     path('employee_view/', views.employee_view, name='employee_view'),
     path('getcourses/', views.GetCourses, name='GetCourses'),
     path('allquiz/', views.allquiz, name='allquiz'),

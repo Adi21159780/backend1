@@ -1145,3 +1145,10 @@ class Todotasks1(models.Model):
 
     def _str_(self):
         return self.title
+    
+class Reaction(models.Model):
+    rid = models.BigAutoField(primary_key=True)
+    feedback = models.ForeignKey(Feedback, on_delete=models.CASCADE, related_name='reactions')
+    user_email = models.CharField(max_length=100)  # Email of the user reacting
+    emoji = models.CharField(max_length=10)  # The emoji used for the reaction
+    date = models.DateTimeField(auto_now_add=True)

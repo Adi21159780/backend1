@@ -6365,37 +6365,71 @@ def Resign(request):
 @csrf_exempt
 def social_submit_feedback_get(request):
     if request.method == 'GET':
-        # Check if user is authenticated
         user_email = request.session.get('user_id')
         if not user_email:
             return JsonResponse({'error': 'User not authenticated'}, status=403)
 
-        # Get the authenticated user's information
         try:
             user = Employee.objects.select_related('d_id__c_id').get(emp_emailid=user_email)
         except Employee.DoesNotExist:
             return JsonResponse({'error': 'User not found'}, status=404)
 
-        # Retrieve feedbacks meant for the authenticated user
-        # Use emp_emailid as it is (not emp_emailid_id)
         feedbacks = Feedback.objects.filter(emp_emailid=user).values(
             'fid', 'reason', 'from_email', 'date'
         )
-        feedback_list = [
-            {
+
+        feedback_list = []
+        for fb in feedbacks:
+            reactions = Reaction.objects.filter(feedback_id=fb['fid']).values('user_email', 'emoji', 'date')
+            feedback_list.append({
                 'feedback_id': fb['fid'],
                 'content': fb['reason'],
                 'sender': fb['from_email'],
                 'created_at': fb['date'],
-            }
-            for fb in feedbacks
-        ]
+                'reactions': list(reactions)  # Include reactions for each feedback
+            })
 
         return JsonResponse(feedback_list, safe=False)
 
-    else:
-        return JsonResponse({'error': 'Only GET requests are allowed'}, status=405)
+    return JsonResponse({'error': 'Only GET requests are allowed'}, status=405)
 
+
+
+@csrf_exempt
+def social_add_reaction(request, feedback_id):  # Add feedback_id here
+    if request.method == 'POST':
+        user_email = request.session.get('user_id')
+        if not user_email:
+            return JsonResponse({'error': 'User not authenticated'}, status=403)
+
+        try:
+            data = json.loads(request.body)
+            emoji = data.get('emoji')
+
+            if not emoji:
+                return JsonResponse({'error': 'Emoji is required'}, status=400)
+
+            # Check if feedback exists
+            try:
+                feedback = Feedback.objects.get(fid=feedback_id)
+            except Feedback.DoesNotExist:
+                return JsonResponse({'error': 'Feedback not found'}, status=404)
+
+            # Add the reaction
+            Reaction.objects.create(
+                feedback=feedback,
+                user_email=user_email,
+                emoji=emoji
+            )
+
+            return JsonResponse({'message': 'Reaction added successfully'}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
+
+    return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
 
 
 
