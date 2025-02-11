@@ -271,7 +271,7 @@ def Register(request):
             emp_email = data.get('empMail')
             emp_phone = data.get('empNum')
             emp_pwd = data.get('emp_pwd', 'changeme')
-            emp_role = data.get('empRole', 'Super Manager')
+            emp_role = data.get('empRole', 'input')
             emp_skills = data.get('empSkills')
 
             # Capture the client's IP address
@@ -576,7 +576,7 @@ def Letters(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin', 'Employee'])
 def FAQsView(request):
     c_id = request.session.get('c_id')
     emp_emailid = request.session.get('emp_emailid')
@@ -776,7 +776,7 @@ def AddLoan(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AddExpenses(request):
     emp_emailid = request.session.get('emp_emailid')
 
@@ -800,7 +800,7 @@ def AddExpenses(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin', 'Employee'])
 def ManageExpenses(request):
     emp_emailid = request.session.get('emp_emailid')
 
@@ -846,7 +846,7 @@ def ManageExpenses(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def ExpenseReport(request):
     emp_emailid = request.session.get('emp_emailid')
 
@@ -964,7 +964,7 @@ def Resign(request):
 
 
 @csrf_exempt
-@role_required(['Super Manager', 'Manager', 'HR'])
+@role_required(['Super Admin', 'Manager', 'HR','Employee'])
 def AddCourses(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -1023,7 +1023,7 @@ def AddCourses(request):
 
 
 @csrf_exempt
-@role_required(['Super Manager', 'Manager', 'HR'])
+@role_required(['Super Admin', 'Manager', 'HR','Employee'])
 def GetCourses(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -1059,7 +1059,7 @@ def GetCourses(request):
         return JsonResponse({'error': 'Only GET requests are allowed'}, status=405)
 
 @csrf_exempt
-@role_required(['Super Manager', 'Manager', 'HR'])
+@role_required(['Super Admin', 'Manager', 'HR','Employee'])
 def GetCourses(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -1103,7 +1103,7 @@ def GetCourses(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def UploadMedia(request):
     company_id = request.session.get('c_id')
 
@@ -1143,7 +1143,7 @@ def UploadMedia(request):
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def UploadPdf(request):
     company_id = request.session.get('c_id')
 
@@ -1194,7 +1194,7 @@ def UploadPdf(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AddMediaContent(request):
     company_id = request.session.get('c_id')
 
@@ -1216,7 +1216,7 @@ def AddMediaContent(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def UpdateDeleteMedia(request):
     company_id = request.session.get('c_id')
 
@@ -1232,7 +1232,7 @@ def UpdateDeleteMedia(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def UpdateMedia(request, course_id):
     company_id = request.session.get('c_id')
 
@@ -1296,7 +1296,7 @@ def UpdateMedia(request, course_id):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def ReportingStructureForm(request):
     company_id = request.session.get('c_id')
 
@@ -1335,7 +1335,7 @@ def ReportingStructureForm(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CeoHrAnnouncements(request):
     company_id = request.session.get('c_id')
     print(f"Company ID from session: {company_id}")  # Debugging
@@ -1453,7 +1453,7 @@ def CeoHrAnnouncements(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AddNewEmployee(request):
     company_id = request.session.get('c_id')
 
@@ -1483,7 +1483,7 @@ def AddNewEmployee(request):
         skills = data.get('skills')
         emp_role = data.get('emp_role')
 
-        valid_roles = ['HR', 'Super Manager', 'Manager', 'Employee']
+        valid_roles = ['HR', 'Super Admin', 'Manager', 'Employee']
         if emp_role not in valid_roles:
             return JsonResponse({'error': 'Invalid role selected'}, status=400)
 
@@ -1507,7 +1507,7 @@ def AddNewEmployee(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def UpdateDeleteEmployee(request):
     company_id = request.session.get('c_id')
     emp_emailid = request.session.get('emp_emailid')
@@ -1586,7 +1586,7 @@ def UpdateDeleteEmployee(request):
 #         except Employee.DoesNotExist:
 #             return JsonResponse({'error': 'Employee not found or you do not have permission to update it'}, status=404)
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def UpdateEmployeeDetails(request):
     company_id = request.session.get('c_id')
     emp_emailid = request.session.get('emp_emailid')
@@ -1650,7 +1650,7 @@ def UpdateEmployeeDetails(request):
         return JsonResponse({'error': 'Unsupported method'}, status=405)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def JDForms(request):
     if request.method == 'POST':
         res = request.POST.getlist('res[]')
@@ -1779,7 +1779,7 @@ def update_leave_status(request, leave_id):
 logging.basicConfig(level=logging.DEBUG)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def LeaveDetails(request, id):  # Accept the 'id' parameter from the URL
     logging.debug(f"Received request method: {request.method}")
 
@@ -1831,7 +1831,7 @@ def LeaveDetails(request, id):  # Accept the 'id' parameter from the URL
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def ManageLeaveType(request):
     if request.method == 'GET':
         try:
@@ -1898,7 +1898,7 @@ def ManageLeaveType(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EditLeaveType(request, id):
     if request.method == 'GET':
         try:
@@ -1950,7 +1950,7 @@ def EditLeaveType(request, id):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def Leaves(request):
     if request.method == 'GET':
         try:
@@ -1995,7 +1995,7 @@ def Leaves(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def PendingLeaves(request):
     if request.method == 'GET':
         try:
@@ -2033,7 +2033,7 @@ def PendingLeaves(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def ApprovedLeaves(request):
     if request.method == 'GET':
         try:
@@ -2071,7 +2071,7 @@ def ApprovedLeaves(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def RejectedLeaves(request):
     if request.method == 'GET':
         try:
@@ -2110,7 +2110,7 @@ def RejectedLeaves(request):
 
 # Resignation Management
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AllResignation(request):
     emp_emailid = request.session.get('emp_emailid')
     c_id = request.session.get('c_id')
@@ -2155,7 +2155,7 @@ def AllResignation(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AllExitClearance(request):
     emp_emailid = request.session.get('emp_emailid')
     c_id = request.session.get('c_id')
@@ -2207,7 +2207,7 @@ def AllExitClearance(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AllFinalSettlement(request):
     emp_emailid = request.session.get('emp_emailid')
     c_id = request.session.get('c_id')
@@ -2259,7 +2259,7 @@ def AllFinalSettlement(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EditResignation(request):
     c_id = request.session.get('c_id')
 
@@ -2328,7 +2328,7 @@ def EditResignation(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EditExitClearnace(request):
     c_id = request.session.get('c_id')
     emp_emailid = request.session.get('emp_emailid')
@@ -2394,7 +2394,7 @@ def EditExitClearnace(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def GenerateFnf(request):
     c_id = request.session.get('c_id')
     emp_emailid = request.session.get('emp_emailid')
@@ -2905,7 +2905,7 @@ def UpdateWorkExperience(request):
             work_exp_id = data.get('W_Id')  # The ID of the specific work experience to delete
 
             # Check if the user's role has permission to delete
-            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
+            if employee.emp_role not in ['Manager', 'Super Admin', 'HR','Employee']:
                 return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
 
             # Ensure emp_emailid is provided
@@ -3009,7 +3009,7 @@ def UpdateDependent(request):
             D_Id = request.GET.get('D_Id')
             dependent = get_object_or_404(Dependent, D_Id = D_Id, emp_emailid=emp_emailid)
 
-            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
+            if employee.emp_role not in ['Manager', 'Super Admin','Employee', 'HR']:
                 return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
             
             dependent.delete()
@@ -3318,7 +3318,7 @@ def UpdateQualification(request):
 
             employee = get_object_or_404(Employee, emp_emailid=emp_emailid)
 
-            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
+            if employee.emp_role not in ['Manager', 'Super Admin','Employee', 'HR']:
                 return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
             
             qualification.delete()
@@ -3405,7 +3405,7 @@ def UpdateFamilyDetails(request):
             F_Id = request.GET.get('F_Id')
             family_detail = Family_details.objects.get(F_Id=F_Id, emp_emailid=emp_emailid)
 
-            if employee.emp_role not in ['Manager', 'Super Manager', 'HR']:
+            if employee.emp_role not in ['Manager', 'Super Admin','Employee', 'HR']:
                 return JsonResponse({'status': 'error', 'message': 'Permission denied'}, status=403)
 
 
@@ -3421,7 +3421,7 @@ def UpdateFamilyDetails(request):
 
 # Case Management section
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AllCases(request):
     def TimeAgo(ptime):
         current_time = timezone.now()
@@ -3468,7 +3468,7 @@ def AllCases(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CaseInfo(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -3525,7 +3525,7 @@ def CaseInfo(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def BenefitsCases(request):
     def get_timeago(ptime):
         estimate_time = timezone.now() - ptime
@@ -3580,7 +3580,7 @@ def BenefitsCases(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def TravelExpenseCases(request):
     def get_timeago(ptime):
         estimate_time = timezone.now() - ptime
@@ -3635,7 +3635,7 @@ def TravelExpenseCases(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CompensationPayrollCases(request):
     def get_timeago(ptime):
         estimate_time = timezone.now() - ptime
@@ -3691,7 +3691,7 @@ def CompensationPayrollCases(request):
 
 # incomplete pending uncomment , need to complete this (Employee Jobs)
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def ManagerRating(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -3771,7 +3771,7 @@ def FAQManagement(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EnrollEmployee(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -3820,7 +3820,7 @@ def EnrollEmployee(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def ViewAllEnrollments(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -3849,7 +3849,7 @@ def ViewAllEnrollments(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AdhocPayments(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -3888,7 +3888,7 @@ def AdhocPayments(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def LoanPayments(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -3968,7 +3968,7 @@ def LoanPayments(request):
 #         return JsonResponse({"error": "Invalid request method"}, status=405)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def LeaveEncashment(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -4016,7 +4016,7 @@ def LeaveEncashment(request):
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
 
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 @csrf_exempt
 def ViewLeaveEncashment(request):
     company_id = request.session.get('c_id')
@@ -4054,7 +4054,7 @@ def ViewLeaveEncashment(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def OffCyclePayments(request):
     user_id = request.session.get('user_id')
     company_id = request.session.get('c_id')
@@ -4104,7 +4104,7 @@ def OffCyclePayments(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def BankTransferPayout(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -4118,7 +4118,7 @@ def BankTransferPayout(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def BankTransfer(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -4155,7 +4155,7 @@ def BankTransfer(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def BankTransferUpdate(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -4214,7 +4214,7 @@ def BankTransferUpdate(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CashChequeTransferPayout(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -4460,7 +4460,7 @@ def HoldSalary(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])  # Assuming this decorator checks roles
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])  # Assuming this decorator checks roles
 def UnholdSalary(request):
     c_id = request.session.get('c_id')  # Get the company ID from session
     emailid = request.GET.get('emailid')  # Get employee email from GET parameters
@@ -4496,7 +4496,7 @@ def UnholdSalary(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def PayslipPayout(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -4510,7 +4510,7 @@ def PayslipPayout(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def GeneratePayslip(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -4536,7 +4536,7 @@ def GeneratePayslip(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def HomeSalary(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -4550,7 +4550,7 @@ def HomeSalary(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AddSalary(request):
     print("View reached")
     if request.method == 'POST':
@@ -4782,7 +4782,7 @@ def AddSalary(request):
 #             return JsonResponse({'error': 'Employee not found or does not belong to this company.'}, status=404)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AddSalary1(request):
     if request.method == 'GET':
         # Get company id from session
@@ -4960,7 +4960,7 @@ def tax_calculation_to_add_salary(age, annual_taxable):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def SalaryRevisionHistory(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -5034,7 +5034,7 @@ def SalaryRevisionHistory(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def DisplaySalaryDetails(request):
     c_id = request.session.get('c_id')
     if not c_id:
@@ -5144,7 +5144,7 @@ def DisplaySalaryDetails(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CustomForms(request):
     company_id = request.session.get('c_id')
     c_id = get_object_or_404(Company, pk=company_id)
@@ -5253,7 +5253,7 @@ def CustomForms(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EditFormView(request):
     user_name = request.session.get('emp_name')
     company_id = request.session.get('c_id')
@@ -5275,7 +5275,7 @@ def EditFormView(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AllocateFormView(request):
     user_name = request.session.get('emp_name')
     company_id = request.session.get('c_id')
@@ -5323,7 +5323,7 @@ def AllocateFormView(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AddTextQuestionFormView(request):
     user_name = request.session.get('emp_name')
     company_id = request.session.get('c_id')
@@ -5379,7 +5379,7 @@ def AddTextQuestionFormView(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AddRadioQuestionView(request):
     user_name = request.session.get('emp_name')
     company_id = request.session.get('c_id')
@@ -5435,7 +5435,7 @@ def AddRadioQuestionView(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CustomLetter(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -5500,7 +5500,7 @@ def CustomLetter(request):
         return JsonResponse({'error': 'Unsupported method'}, status=405)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EditLetterView(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -5559,7 +5559,7 @@ def EditLetterView(request):
         return JsonResponse({'error': 'Unsupported method'}, status=405)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EmployeeDetails(request):
     company_id = request.session.get('c_id')
     logged_in_email = request.session.get('emp_emailid')  # Ensure user is logged in
@@ -5748,7 +5748,7 @@ def AttendanceDetails(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def EmployeeMaster(request):
     company_id = request.session.get('c_id')
     print(company_id)
@@ -5900,7 +5900,7 @@ def get_performance_data(request, employee_email, year):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def jd_form(request):
     """
     Handles requests related to Job Description forms.
@@ -5961,7 +5961,7 @@ def jd_form(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def AttritionReport(request):
     """
     Generates an attrition report for the company.
@@ -6062,7 +6062,7 @@ def get_performance_data(request, year):
     return JsonResponse(data, status=200)
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def BenefitsCases(request):
     def get_timeago(ptime):
         estimate_time = timezone.now() - ptime
@@ -6117,7 +6117,7 @@ def BenefitsCases(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def TravelExpenseCases(request):
     def get_timeago(ptime):
         estimate_time = timezone.now() - ptime
@@ -6172,7 +6172,7 @@ def TravelExpenseCases(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CompensationPayrollCases(request):
     def get_timeago(ptime):
         estimate_time = timezone.now() - ptime
@@ -7248,7 +7248,7 @@ def Settings(request):
 
 # addded dipayan
 @csrf_exempt
-@role_required(['Manager', 'Super Manager'])
+@role_required(['Manager', 'Super Admin','Employee'])
 def JDForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -7320,7 +7320,7 @@ def JDForm(request):
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 @csrf_exempt
-@role_required(['Manager', 'Super Manager'])
+@role_required(['Manager', 'Super Admin','Employee'])
 def KRAForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_emailid')
@@ -7383,7 +7383,7 @@ def KRAForm(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def SOPForm(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -7518,7 +7518,7 @@ def SOPForm(request):
  
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def bulkUploadEmployeeDetailsUpload(request):
     company_id = request.session.get('c_id')
     user_name = request.session.get('emp_name')
@@ -7796,7 +7796,7 @@ def SopList(request, sop_id=None):
                 return JsonResponse({'error': 'SOP not found'}, status=404)
 
             # Check if the user is a manager
-            if user_role == 'manager' or user_role == 'super manager':
+            if user_role == 'manager' or user_role == 'super admin':
                 sop.ratings = data.get('ratings', sop.ratings)
                 sop.remarks = data.get('remarks', sop.remarks)
             else:
@@ -7929,7 +7929,7 @@ def JdDetails(request):
                 return JsonResponse({'error': 'Job Description not found'}, status=404)
 
             # Check if the user is a manager
-            if user_role in ['manager', 'super manager']:
+            if user_role in ['manager', 'super admin']:
                 job_desc.ratings = data.get('ratings', job_desc.ratings)
                 job_desc.remarks = data.get('remarks', job_desc.remarks)
             else:
@@ -7955,7 +7955,7 @@ def JdDetails(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def CreateQuiz(request):
     if request.method == 'POST':
         user_email = request.session.get('user_id')
@@ -7966,7 +7966,7 @@ def CreateQuiz(request):
 
             user = Employee.objects.get(emp_emailid=user_email)
 
-            if user.emp_role not in ['HR', 'Manager', 'Super Manager']:
+            if user.emp_role not in ['HR', 'Manager', 'Super Admin']:
                 return JsonResponse({'error': 'You do not have permission to create a quiz'}, status=403)
 
             company = user.d_id.c_id
@@ -8036,7 +8036,7 @@ def CreateQuiz(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])  # Custom role decorator for authorization
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])  # Custom role decorator for authorization
 def GetAllQuizzes(request):
     if request.method == 'GET':
         user_email = request.session.get('user_id')
@@ -8046,7 +8046,7 @@ def GetAllQuizzes(request):
         try:
             user = Employee.objects.get(emp_emailid=user_email)
 
-            if user.emp_role not in ['HR', 'Manager', 'Super Manager']:
+            if user.emp_role not in ['HR', 'Manager', 'Super Admin','Employee']:
                 return JsonResponse({'error': 'You do not have permission to view quizzes'}, status=403)
 
             # Get all quizzes belonging to the user's company
@@ -8076,7 +8076,7 @@ def GetAllQuizzes(request):
 
 
 @csrf_exempt
-@role_required(['HR', 'Manager', 'Super Manager'])
+@role_required(['HR', 'Manager', 'Super Admin','Employee'])
 def ToggleQuizStatus(request):
     if request.method == 'POST':
         user_email = request.session.get('user_id')
@@ -8086,7 +8086,7 @@ def ToggleQuizStatus(request):
         try:
             user = Employee.objects.get(emp_emailid=user_email)
 
-            if user.emp_role not in ['HR', 'Manager', 'Super Manager']:
+            if user.emp_role not in ['HR', 'Manager', 'Super Admin']:
                 return JsonResponse({'error': 'You do not have permission to toggle quiz status'}, status=403)
 
             data = json.loads(request.body)
