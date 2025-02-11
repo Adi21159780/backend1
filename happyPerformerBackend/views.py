@@ -270,7 +270,7 @@ def Register(request):
             emp_name = data.get('empName')
             emp_email = data.get('empMail')
             emp_phone = data.get('empNum')
-            emp_pwd = data.get('emp_pwd', 'changeme')
+            emp_pwd = data.get('empPwd')
             emp_role = data.get('input', 'index')
             emp_skills = data.get('empSkills')
 
