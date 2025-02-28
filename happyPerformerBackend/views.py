@@ -104,9 +104,62 @@ def About(request):
 def TermsAndConditions(request):
     return JsonResponse({"data":"Terms and Conditions Page reached without any issues"})
 
+# Working login without checking department
+# @csrf_exempt
+# def Login(request):
+#     if request.method == 'POST':
+#         if request.session.get('user_id'):
+#             return JsonResponse({'error': 'User already logged in'}, status=403)  # Changed to 403
+
+#         data = json.loads(request.body)
+#         emp_emailid = data.get('email')
+#         emp_pwd = data.get('password')
+
+#         # Validate input
+#         if not emp_emailid or not emp_pwd:
+#             return JsonResponse({'error': 'Email and password are required'}, status=400)
+
+#         try:
+#             # Check if the employee exists with the provided email and password
+#             user = Employee.objects.get(emp_emailid=emp_emailid, emp_pwd=emp_pwd)
+
+#             # Set session data
+#             department = user.d_id
+#             company = department.c_id
+
+#             request.session['user_id'] = user.emp_emailid
+#             request.session['emp_name'] = user.emp_name
+#             request.session['emp_emailid'] = user.emp_emailid
+#             request.session['emp_role'] = user.emp_role
+#             request.session['d_id'] = department.d_id
+#             request.session['c_id'] = company.c_id
+#             request.session['c_name'] = company.c_name
+
+#             request.session.save()
+
+#             # Prepare response data
+#             profile_url = settings.MEDIA_URL + str(user.emp_profile) if user.emp_profile else None
+
+#             response_data = {
+#                 'message': 'Login successful',
+#                 'user_id': user.emp_emailid,
+#                 'emp_name': user.emp_name,
+#                 'emp_emailid': user.emp_emailid,
+#                 'emp_role': user.emp_role,
+#                 'd_id': department.d_id,
+#                 'c_id': company.c_id,
+#                 'c_name': company.c_name,
+#                 'profile_url': profile_url,
+#             }
+
+#             return JsonResponse(response_data, status=200)
+
+#         except Employee.DoesNotExist:
+#             return JsonResponse({'error': 'Invalid email or password'}, status=401)
+#     else:
+#         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
 @csrf_exempt
 def Login(request):
-    
     if request.method == 'POST':
         if request.session.get('user_id'):
             return JsonResponse({'message': 'User already logged in'}, status=200)
@@ -114,10 +167,17 @@ def Login(request):
         data = json.loads(request.body)
         emp_emailid = data.get('email')
         emp_pwd = data.get('password')
+        emp_role = data.get('department')  # Get department (emp_role) from the request
+
+        # Validate input
+        if not emp_emailid or not emp_pwd or not emp_role:
+            return JsonResponse({'error': 'Email, password, and department are required'}, status=400)
 
         try:
-            user = Employee.objects.get(emp_emailid=emp_emailid, emp_pwd=emp_pwd)
+            # Check if the employee exists with the provided email, password, and emp_role
+            user = Employee.objects.get(emp_emailid=emp_emailid, emp_pwd=emp_pwd, emp_role=emp_role)
 
+            # Set session data
             department = user.d_id
             company = department.c_id
 
@@ -131,6 +191,7 @@ def Login(request):
 
             request.session.save()
 
+            # Prepare response data
             profile_url = settings.MEDIA_URL + str(user.emp_profile) if user.emp_profile else None
 
             response_data = {
@@ -148,9 +209,22 @@ def Login(request):
             return JsonResponse(response_data, status=200)
 
         except Employee.DoesNotExist:
-            return JsonResponse({'error': 'Invalid username or password'}, status=401)
+            return JsonResponse({'error': 'Invalid email, password, or department'}, status=401)
     else:
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+
+from django.http import JsonResponse
+from .models import Employee
+
+@csrf_exempt
+def GetDepartments(request):
+    if request.method == 'GET':
+        # Fetch unique emp_role values from the Employee table
+        departments = Employee.objects.values_list('emp_role', flat=True).distinct()
+        departments_data = [{"d_id": idx, "d_name": dept} for idx, dept in enumerate(departments)]
+        return JsonResponse({"departments": departments_data}, status=200)
+    else:
+        return JsonResponse({'error': 'Only GET requests are allowed'}, status=405)
 
 
 def Users(request):
@@ -409,9 +483,7 @@ def UpdateSelfratings(request, sop_id):
 @csrf_exempt
 def KraList(request):
     if request.method == 'GET':
-        kras = Kra.objects.all().values(
-            'kra_no', 'KRA', 'Weightage', 'KPI', 'Target', 'ratingsscale', 'ratings', 'selfratings', 'remarks', 'status', 'email_id', 'kra_id'
-        )
+        kras = Kra.objects.all().values('kra_no', 'kra', 'weightage', 'kpi', 'target', 'ratings_scale', 'ratings', 'selfratings', 'remarks', 'status', 'email_id', 'kra_id')
         kra_list = list(kras)
         return JsonResponse(kra_list, safe=False)
     else:
@@ -622,10 +694,15 @@ def ApplyLeave(request):
         try:
             # Parse the request body to get the data
             data = json.loads(request.body)
+            print("Received data:", data)  # Log the incoming data
+
             leavetype = data.get('leaveType')
             fromdate = data.get('fromDate')
             todate = data.get('toDate')
             description = data.get('leaveDescription')
+
+            if not all([leavetype, fromdate, todate, description]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON'}, status=400)
@@ -657,8 +734,6 @@ def ApplyLeave(request):
         try:
             # Access the company through the employee's department
             leave_type = Leavetype.objects.get(LeaveType__iexact=leavetype, company_id=employee.d_id.c_id)
-
-
         except Leavetype.DoesNotExist:
             return JsonResponse({'error': 'Leave type does not exist'}, status=400)
 
@@ -711,9 +786,6 @@ def ApplyLeave(request):
 
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
-
-
-
 
 
 @csrf_exempt
@@ -5766,39 +5838,63 @@ def EmployeeMaster(request):
     return JsonResponse(data)
 
 
+from psycopg2.extras import DateTimeTZRange
+from datetime import datetime
+import json
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Todotasks, Employee, Tasks
+
 @csrf_exempt
 def task_list(request):
-    """
-    Handles requests related to to-do tasks.
-
-    GET: Retrieves a list of tasks for the authenticated user.
-    POST: Creates a new task for the authenticated user.
-    """
     emp_emailid = request.session.get('emp_emailid')
+
     if not emp_emailid:
         return JsonResponse({'error': 'User not logged in'}, status=401)
 
-    if request.method == 'GET':
-        tasks = Todotasks.objects.filter(tasks_tid__emp_emailid=emp_emailid).values()
-        tasks_list = list(tasks)
-        return JsonResponse(tasks_list, safe=False)
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(f"📩 [RECEIVED] Data from frontend: {data}")
 
-    elif request.method == 'POST':
-        data = json.loads(request.body)
-        description = data.get('description')
-        new_task = Todotasks(description=description)
-        new_task.save()
+            title = data.get('title')
+            description = data.get('description')
+            priority = data.get('priority', False)
+            completed = data.get('completed', False)
+            start_date = data.get('start_date')
+            end_date = data.get('end_date')
 
-        # Fetch the Employee instance using emp_emailid
-        employee = Employee.objects.get(emp_emailid=emp_emailid)
+            if not title or not description or not start_date or not end_date:
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
 
-        # Create the associated Tasks entry using the Employee instance
-        Tasks.objects.create(tid=new_task, emp_emailid=employee)
+            # Convert date strings to datetime objects
+            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
 
-        return JsonResponse(
-            {'id': new_task.tid, 'description': new_task.description, 'date': new_task.date}, 
-            status=201
-        )
+            # Store in proper PostgreSQL range format
+            date_range = DateTimeTZRange(start_date_obj, end_date_obj, '[)')  # Inclusive start, exclusive end
+
+            new_task = Todotasks(
+                title=title,
+                description=description,
+                date=date_range,  # Corrected format
+                priority=priority,
+                completed=completed
+            )
+            new_task.save()
+            print(f"✅ [DB SUCCESS] Task Created: {new_task.__dict__}")
+
+            # Associate with Employee
+            employee = Employee.objects.get(emp_emailid=emp_emailid)
+            task_entry = Tasks.objects.create(tid=new_task, emp_emailid=employee)
+            print(f"✅ [DB SUCCESS] Task linked in Tasks table: {task_entry.__dict__}")
+
+            return JsonResponse({'message': 'Task added successfully!'}, status=201)
+
+        except Exception as e:
+            print(f"❌ [ERROR] Task creation failed: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=400)
+
 
 @csrf_exempt
 def task_detail(request, task_id):
@@ -6786,16 +6882,23 @@ def reset_password(request):
     if request.method == 'POST':
         data = json.loads(request.body)
         email = data.get('email')
-        password = data.get('password')  # Update this line
+        password = data.get('password')  # New password
 
         try:
+            # Find the user by email
             user = Employee.objects.get(emp_emailid=email)
 
+            # Check if the new password is the same as the current password
             if user.emp_pwd == password:
                 return JsonResponse({'error': 'New password cannot be the same as the current password'}, status=400)
 
+            # Update the password
             user.emp_pwd = password
             user.save()
+
+            # Clear the session (log the user out)
+            request.session.flush()
+
             return JsonResponse({'message': 'Password reset successful'}, status=200)
 
         except Employee.DoesNotExist:
@@ -7319,21 +7422,20 @@ def JDForm(request):
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ObjectDoesNotExist
+from .models import Kra, Employee, Kra_table
+import json
+from datetime import datetime
+
 @csrf_exempt
-@role_required(['Manager', 'Super Admin','Employee'])
+# # @role_required(['Manager', 'Super Admin', 'Employee'])
 def KRAForm(request):
-    company_id = request.session.get('c_id')
-    user_name = request.session.get('emp_emailid')
-    print(f"Session Company ID: {company_id}, User Email: {user_name}")
-
-    if not company_id or not user_name:
-        return JsonResponse({'error': 'Required session data not found'}, status=401)
-
     if request.method == 'GET':
         try:
-            employees = Employee.objects.filter(
-                d_id__in=Department.objects.filter(c_id=company_id)
-            ).values_list('emp_emailid', flat=True)
+            employees = Employee.objects.values_list('emp_emailid', flat=True)
             return JsonResponse({'employee_email_ids': list(employees)}, status=200)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
@@ -7346,40 +7448,114 @@ def KRAForm(request):
             email_ids = data.get('email_ids', [])
             submission_date = data.get('submission_date')
 
+            print(f"Received data: {data}")
+
             if not kras or not email_ids or not submission_date:
                 return JsonResponse({'error': 'Incomplete data provided'}, status=400)
 
+            submission_date = datetime.strptime(submission_date, "%Y-%m-%dT%H:%M:%S")
+
             for kra_data in kras:
                 kra = kra_data.get('kra')
-                weightage = kra_data.get('weightage')
+                weightage = int(kra_data.get('weightage', 0))
                 kpi = kra_data.get('kpi')
-                measurement = kra_data.get('measurement')
+                target = kra_data.get('target')
+                ratings_scale = kra_data.get('ratings_scale')
+                ratings = kra_data.get('ratings', 1)
+                selfratings = kra_data.get('selfratings', 0)
+                remarks = kra_data.get('remarks', '')
+                status = kra_data.get('status', 0)
+                measurement = kra_data.get('measurement', '0')
+                kra_id = kra_data.get('kra_id')  # Optional field
 
-                if not kra or not weightage or not kpi or not measurement:
+                if not kra or not weightage or not kpi or not target or not ratings_scale:
                     return JsonResponse({'error': 'Incomplete KRA data'}, status=400)
 
-                # Create KRA records for each employee
                 for email_id in email_ids:
                     if not Employee.objects.filter(emp_emailid=email_id).exists():
                         return JsonResponse({'error': f'Employee with email ID {email_id} does not exist'}, status=404)
 
-                    # Create an entry in the Kra_desc table
-                    Kra_desc.objects.create(
-                        KRA=kra,
-                        Weightage=weightage,
-                        KPI=kpi,
-                        Measurement=measurement,
-                        submission_date=submission_date,
-                        email_id=email_id
+                    # Handle kra_id (optional)
+                    kra_table_entry = None
+                    if kra_id:
+                        try:
+                            kra_table_entry = Kra_table.objects.get(pk=kra_id)
+                        except ObjectDoesNotExist:
+                            return JsonResponse({'error': f'kra_id {kra_id} does not exist'}, status=404)
+
+                    # Create an entry in the Kra model
+                    Kra.objects.create(
+                        kra=kra,
+                        weightage=weightage,
+                        kpi=kpi,
+                        target=target,
+                        ratings_scale=ratings_scale,
+                        ratings=ratings,
+                        selfratings=selfratings,
+                        remarks=remarks,
+                        status=status,
+                        email_id=email_id,
+                        kra_id=kra_table_entry,  # Can be null
+                        measurement=measurement,
+                        submission_date=submission_date
                     )
 
             return JsonResponse({'message': 'KRA form submitted successfully!'}, status=200)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON format'}, status=400)
+        except ValueError:
+            return JsonResponse({'error': 'Invalid date format'}, status=400)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Kra, Kra_table
+
+@csrf_exempt
+def DeleteKRA(request, kra_no):
+    if request.method == 'DELETE':
+        try:
+            # Fetch the KRA entry by kra_no
+            kra = Kra.objects.get(kra_no=kra_no)
+            # Delete the related entry in kra_table first
+            Kra_table.objects.filter(kra_id=kra.kra_id_id).delete()
+            # Delete the entry
+            kra.delete()
+            return JsonResponse({'message': 'KRA deleted successfully!'}, status=200)
+        except Kra.DoesNotExist:
+            return JsonResponse({'error': 'KRA not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .models import Kra
+
+@csrf_exempt  # Only for testing; remove in production
+def UpdateKRA(request, kra_no):
+    if request.method == "PATCH":
+        try:
+            data = json.loads(request.body)
+            kra = Kra.objects.get(kra_no=kra_no)
+
+            new_status = data.get("status")  # Get new status from request
+            if new_status not in [0, 1, 2, 3]:  # Validate status values
+                return JsonResponse({"error": "Invalid status"}, status=400)
+
+            kra.status = new_status
+            kra.save()
+            return JsonResponse({"message": "Status updated", "status": kra.status})
+
+        except Kra.DoesNotExist:
+            return JsonResponse({"error": "KRA not found"}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return JsonResponse({"error": "Invalid request"}, status=400)
 
 
 @csrf_exempt
@@ -8851,39 +9027,86 @@ def Letters1(request):
     else:
         return JsonResponse({'error': 'Required session data not found'}, status=401)
 
+# @csrf_exempt
+# def task_list1(request):
+#     emp_emailid = request.session.get('emp_emailid')  # Get the logged-in emp_emailid from the session
+
+#     if not emp_emailid:
+#         return JsonResponse({'error': 'User not logged in'}, status=401)
+
+#     if request.method == 'GET':
+#         try:
+#             # Fetch tasks only for the logged-in user's emp_emailid
+#             tasks = Todotasks1.objects.filter(emp_emailid=emp_emailid).values('id', 'title', 'completed')
+#             task_list = list(tasks)
+#             return JsonResponse(task_list, safe=False)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=500)
+
+#     elif request.method == 'POST':
+#         try:
+#             # Parse incoming data
+#             data = json.loads(request.body)
+#             title = data.get('text', '')
+#             completed = data.get('isCompleted', False)
+
+#             # Create a new task with the logged-in user's emp_emailid
+#             new_task = Todotasks1(title=title, completed=completed, emp_emailid=emp_emailid)
+#             new_task.save()
+
+#             return JsonResponse({'message': 'Task created successfully'}, status=201)
+#         except Exception as e:
+#             return JsonResponse({'error': str(e)}, status=400)
+
+#     else:
+#         return JsonResponse({'error': 'Invalid HTTP method'}, status=400)
 @csrf_exempt
 def task_list1(request):
-    emp_emailid = request.session.get('emp_emailid')  # Get the logged-in emp_emailid from the session
+    emp_emailid = request.session.get('emp_emailid')  # Get the logged-in user's email
 
     if not emp_emailid:
         return JsonResponse({'error': 'User not logged in'}, status=401)
 
     if request.method == 'GET':
         try:
-            # Fetch tasks only for the logged-in user's emp_emailid
-            tasks = Todotasks1.objects.filter(emp_emailid=emp_emailid).values('id', 'title', 'completed')
-            task_list = list(tasks)
-            return JsonResponse(task_list, safe=False)
+            # Fetch tasks only for the logged-in user
+            tasks = Todotasks1.objects.filter(emp_emailid=emp_emailid).values(
+                'id', 'title', 'description', 'start_date', 'end_date', 'priority', 'completed'
+            )
+            return JsonResponse(list(tasks), safe=False)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
     elif request.method == 'POST':
         try:
-            # Parse incoming data
+            # Parse incoming JSON data
             data = json.loads(request.body)
-            title = data.get('text', '')
-            completed = data.get('isCompleted', False)
+            
+            # Extract task details
+            title = data.get('title', '')
+            description = data.get('description', '')
+            start_date = data.get('start_date', None)
+            end_date = data.get('end_date', None)
+            priority = data.get('priority', False)
+            completed = data.get('completed', False)
 
-            # Create a new task with the logged-in user's emp_emailid
-            new_task = Todotasks1(title=title, completed=completed, emp_emailid=emp_emailid)
-            new_task.save()
+            # Create and save the new task
+            new_task = Todotasks1.objects.create(
+                title=title,
+                description=description,
+                start_date=start_date,
+                end_date=end_date,
+                priority=priority,
+                completed=completed,
+                emp_emailid=emp_emailid
+            )
 
-            return JsonResponse({'message': 'Task created successfully'}, status=201)
+            return JsonResponse({'message': 'Task created successfully', 'task_id': new_task.id}, status=201)
+
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
-    else:
-        return JsonResponse({'error': 'Invalid HTTP method'}, status=400)
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
 
 
 @csrf_exempt

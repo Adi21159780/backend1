@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
 
     'corsheaders',
     'rest_framework',
@@ -112,9 +113,9 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'ehappyperformer_db',
-        'USER': 'happyperformer',
-        'PASSWORD': 'happyperformer',
+        'NAME': 'base1',
+        'USER': 'postgres',
+        'PASSWORD': '12345ps',
         'HOST': 'localhost',
         'PORT': '5432',
     }

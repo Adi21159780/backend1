@@ -1,5 +1,7 @@
 from django.db import models
 from .validators import validate_image_extension
+from django.contrib.postgres.fields import DateTimeRangeField
+
 
 
 class Company(models.Model):
@@ -141,6 +143,20 @@ class Banktransferstatement(models.Model):
     amount = models.CharField(max_length=30)
 
 
+class Calendar(models.Model):
+    email = models.ForeignKey(Employee, on_delete=models.CASCADE, to_field="emp_emailid")
+    date_start = models.DateTimeField()
+    date_end = models.DateTimeField()
+    event_type = models.CharField(max_length=100, blank=True, null=True)
+    event_title = models.CharField(max_length=255, blank=True, null=True)
+    color_hex = models.CharField(max_length=7, validators=[], null=True, blank=True)  # Add a validator if needed
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def _str_(self):
+        return f"{self.event_title} ({self.email})"
+
+        
 class Case(models.Model):
     case_id = models.BigAutoField(primary_key=True)
     create_for = models.CharField(max_length=50)
@@ -488,29 +504,45 @@ class Job_info(models.Model):
 class Kra_table(models.Model):
     kra_id = models.BigAutoField(primary_key=True)
 
-
 class Kra(models.Model):
-    kra_no = models.BigAutoField(primary_key=True)
-    KRA = models.CharField(max_length=50)
-    Weightage = models.IntegerField()
-    KPI = models.CharField(max_length=500)
-    Target = models.CharField(max_length=500)
-    ratingsscale = models.CharField(max_length=500)
     RATINGS_CHOICES = [
         (1, '1'),
         (2, '2'),
         (3, '3'),
         (4, '4'),
     ]
+    APPROVAL_STATUS_CHOICES = [
+    (0, 'Pending'),
+    (1, 'Approved'),
+    (2, 'Rejected'),
+    (3, 'Requested'),  # New Status
+]
+
+
+    kra_no = models.BigAutoField(primary_key=True)
+    kra = models.CharField(max_length=50)
+    weightage = models.IntegerField()
+    kpi = models.CharField(max_length=500)
+    target = models.CharField(max_length=500)
+    ratings_scale = models.IntegerField()
     ratings = models.IntegerField(choices=RATINGS_CHOICES, null=True, blank=True, default=1)
     selfratings = models.IntegerField(default=0)
     remarks = models.CharField(max_length=500, null=True, default=None)
-    status = models.IntegerField(default=0)
-    kra_id = models.IntegerField()
-    email_id = models.CharField(max_length=100, null=True, default=None)
-    kra_id = models.ForeignKey('Kra_table', on_delete=models.CASCADE, db_column='kra_id', null=True)
-    Measurement = models.IntegerField(null=True, default=0)
-    submission_date = models.DateTimeField(default=None)
+    status = models.IntegerField(choices=APPROVAL_STATUS_CHOICES, default=0)
+    email_id = models.EmailField(max_length=100, null=True, default=None)
+    kra_id = models.ForeignKey('Kra_table',on_delete=models.CASCADE,db_column='kra_id',null=True,blank=True)
+    measurement = models.CharField(max_length=500, null=True, default=0)
+    submission_date = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.kra_id:  # If no kra_id is provided
+            new_kra_table_entry = Kra_table.objects.create()  # Create a new Kra_table entry
+            self.kra_id = new_kra_table_entry  # Assign the new Kra_table entry
+        
+        super().save(*args, **kwargs)  # Save the Kra entry
+
+    def __str__(self):
+        return f"KRA {self.kra_no}: {self.kra}"
 
 
 class Leavecounttemp(models.Model):
@@ -902,21 +934,8 @@ class Tblleaves(models.Model):
     AdminRemarkDate = models.DateTimeField(null=True, blank=True)
     Status = models.IntegerField()
     IsRead = models.IntegerField()
-    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', unique=True,
-                                    null=True)
+    emp_emailid = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', null=True)
     LeaveType = models.ForeignKey('LeaveType', on_delete=models.CASCADE, db_column='LeaveType', null=True)
-
-
-class Todotasks(models.Model):
-    tid = models.BigAutoField(primary_key=True)
-    description = models.CharField(max_length=300)
-    date = models.DateTimeField(auto_now_add=True)
-    evt = models.ForeignKey('events', on_delete=models.CASCADE, db_column='evt_id', null=True, blank=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['evt_id']),
-        ]
 
 
 class User_answer(models.Model):
@@ -1137,13 +1156,17 @@ class Poifiles_new1(models.Model):
     Emp_id = models.ForeignKey('Employee', on_delete=models.CASCADE, db_column='emp_emailid', default=None, unique=True,
                                null=True)
 
-class Todotasks1(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    title = models.CharField(max_length=255)
-    completed = models.BooleanField(default=False)
-    emp_emailid=models.CharField(max_length=100, null=True, default=None)
 
-    def _str_(self):
+class Todotasks(models.Model):
+    tid = models.BigAutoField(primary_key=True)
+    title = models.CharField(max_length=255)  # Task Name
+    description = models.TextField(blank=True, null=True)  # Task Description
+    date = DateTimeRangeField(null=True, blank=True)  # Use a proper PostgreSQL date range
+    priority = models.BooleanField(default=False)  # Mark as Priority
+    completed = models.BooleanField(default=False)  # Task Completion Status
+    emp_emailid = models.CharField(max_length=100, null=True, default=None)  # Employee Email (if applicable)
+
+    def __str__(self):  # Fixed method name
         return self.title
     
 class Reaction(models.Model):

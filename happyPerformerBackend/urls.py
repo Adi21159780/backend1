@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 from django.conf import settings
 from django.conf.urls.static import static
-from .views import task_list,task_detail, task_search
+from .views import task_list,task_detail, task_search, task_delete, task_update
 
 urlpatterns = [
     path('', views.Home, name='home'),
@@ -10,6 +10,7 @@ urlpatterns = [
     path('contact/', views.Contact, name='contact'),
     path('about/', views.About, name='about'),
     path('login/', views.Login, name='login'),
+    path('GetDepartments/', views.GetDepartments, name='get_departments'),
     path('Users/', views.Users, name='Users'),
     path('logout/', views.Logout, name='logout'),
     path('register/', views.Register, name='register'),
@@ -130,9 +131,14 @@ urlpatterns = [
     path('investment-80D/', views.investment_80D, name='investment_80d'),
     path('other-investments/', views.other_investments, name='other_investments'),
     path('other-income/', views.other_income, name='other_income'),
-    path('tasks/', views.task_list1, name='task_list1'),
-    path('tasks/<int:task_id>/', views.task_delete, name='task_delete'),
-    path('taskss/<int:task_id>/', views.task_update, name='task_update'),
+    # path('tasks/', views.task_list1, name='task_list1'),
+    # path('tasks/<int:task_id>/', views.task_delete, name='task_delete'),
+    # path('taskss/<int:task_id>/', views.task_update, name='task_update'),
+    path('tasks/', task_list, name='task_list'),  # Task list
+    path('tasks/<int:task_id>/', task_detail, name='task_detail'),  # Task details
+    path('tasks/<int:task_id>/delete/', task_delete, name='task_delete'),  # Task delete
+    path('tasks/<int:task_id>/update/', task_update, name='task_update'),  # Task update
+    path('tasks/search/', task_search, name='task_search'),  # Task search
     path('attrition/year/', views.attrition_year_data, name='attrition-year-data'),
     path('attrition/department/', views.attrition_department_data, name='attrition-department-data'),
     path('attrition/reasons/', views.attrition_reason_data, name='attrition-reasons-data'),
@@ -149,6 +155,8 @@ urlpatterns = [
     path('jdform/', views.JDForm, name='JDForm'),
     # path('markAttendance/', views.MarkAttendance, name='MarkAttendance'),
     path('kraform/', views.KRAForm, name='KRAForm'),
+    path('delete-kra/<int:kra_no>/', views.DeleteKRA, name='delete_kra'),
+    path('kra-update/<int:kra_no>/', views.UpdateKRA, name='UpdateKRA'),
     path('sopform/', views.SOPForm, name='SOPForm'),
     path('bulkUploadEmployeeDetailsUpload/', views.bulkUploadEmployeeDetailsUpload, name='bulkUploadEmployeeDetailsUpload'),
     # path('bulkEmployeeregistration/', views.bulkEmployeeregistration, name='bulkEmployeeregistration'),
@@ -167,9 +175,9 @@ urlpatterns = [
     path('getemp/', views.get_employee_names_by_company, name='get_employee_names_by_company'),
     path('AddBankDetails/', views.AddBankDetails, name='AddBankDetails'),
     path('AddPersonalDetails/', views.AddPersonalDetails, name='AddPersonalDetails'),
-    path('tasks/', views.task_list, name='task_list'),
-    path('tasks/<int:task_id>/', task_detail, name='task_detail'),
-    path('tasks/search/', task_search, name='task_search'),
+    # path('tasks/', views.task_list, name='task_list'),
+    # path('tasks/<int:task_id>/', task_detail, name='task_detail'),
+    # path('tasks/search/', task_search, name='task_search'),
     path('myperformance/<str:employee_email>/<int:year>/', views.get_performance_data, name='get_performance_data'),
     path('jd-form/', views.jd_form, name='jd_form'),
     path('myperformance/<int:year>/', views.get_performance_data, name='get_performance_data'),
@@ -180,6 +188,3 @@ urlpatterns = [
     
 ]
 
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
